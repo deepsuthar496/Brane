@@ -1,0 +1,263 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Monitor,
+  Link2,
+  Star,
+  Terminal,
+  Mail,
+  FileText,
+  Download,
+  X,
+  Plus,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/layout/page-header";
+import { Titlebar } from "@/components/layout/titlebar";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { SectionDivider } from "@/components/ui/section-divider";
+import { cliFlags } from "@/lib/data";
+import { cn } from "@/lib/utils";
+
+const agentTabs = ["Claude Code", "Gemini CLI", "Cursor", "Global"];
+
+const configSections = [
+  { label: "General", icon: Monitor },
+  { label: "MCP Servers", icon: Link2 },
+  { label: "Skills", icon: Star },
+  { label: "CLI Flags", icon: Terminal },
+  { label: "Environment", icon: Mail },
+  { label: "CLAUDE.md", icon: FileText },
+];
+
+const models = ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5", "Auto"];
+
+export default function ConfigPage() {
+  const [activeAgentTab, setActiveAgentTab] = useState("Claude Code");
+  const [activeSection, setActiveSection] = useState("General");
+  const [selectedModel, setSelectedModel] = useState("claude-opus-4-5");
+
+  return (
+    <div className="flex flex-col h-screen">
+      <Titlebar />
+      <div className="flex flex-1 overflow-hidden">
+        <AppSidebar />
+        <main className="flex-1 flex flex-col overflow-hidden bg-background">
+          <PageHeader
+            breadcrumbs={["Workspace", "Config"]}
+            title="Configuration"
+            subtitle="Per-agent settings, CLI flags, and environment variables"
+            actions={
+              <>
+                <Button variant="outline" size="sm" className="h-7 px-2.5 text-xs gap-1.5">
+                  <Download className="size-[13px]" />
+                  Export
+                </Button>
+                <Button size="sm" className="h-7 px-2.5 text-xs">
+                  Save Changes
+                </Button>
+              </>
+            }
+          />
+
+          {/* Agent Tabs */}
+          <div className="flex items-center gap-0.5 px-7 pt-5 border-b border-border shrink-0" role="tablist" aria-label="Configuration sections">
+            {agentTabs.map((tab) => (
+              <button
+                key={tab}
+                role="tab"
+                aria-selected={activeAgentTab === tab}
+                onClick={() => setActiveAgentTab(tab)}
+                className={cn(
+                  "px-3.5 py-2 text-[13px] font-[450] cursor-pointer border-b-2 transition-colors relative bottom-[-1px]",
+                  activeAgentTab === tab
+                    ? "text-foreground border-primary font-medium"
+                    : "text-txt-3 border-transparent hover:text-muted-foreground"
+                )}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto px-7 py-5 pb-8">
+            <div className="grid grid-cols-[220px_1fr] gap-4 h-full">
+              {/* Config sub-nav */}
+              <div className="bg-card border border-border rounded-xl p-2 h-fit" aria-label="Configuration sections">
+                {configSections.map((section) => (
+                  <button
+                    key={section.label}
+                    aria-current={activeSection === section.label ? "true" : undefined}
+                    onClick={() => setActiveSection(section.label)}
+                    className={cn(
+                      "flex items-center gap-[9px] px-2.5 py-[7px] rounded-md cursor-pointer text-[13px] w-full text-left transition-colors",
+                      activeSection === section.label
+                        ? "bg-sidebar-accent text-foreground font-medium"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <section.icon className="size-[13px]" />
+                    {section.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Config panel */}
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-border flex items-center gap-3">
+                  <Monitor className="size-[15px] opacity-50" />
+                  <div className="text-sm font-semibold text-foreground">
+                    General — {activeAgentTab}
+                  </div>
+                </div>
+                <div className="p-5 flex flex-col gap-5">
+                  {/* Form fields */}
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground" htmlFor="install-path">
+                        Install Path
+                      </label>
+                      <Input
+                        id="install-path"
+                        defaultValue="/usr/local/bin/claude"
+                        className="h-[34px] text-[13px] font-mono bg-muted"
+                      />
+                      <span className="text-[11.5px] text-txt-3">
+                        Absolute path to the binary
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground" htmlFor="working-dir">
+                        Working Directory
+                      </label>
+                      <Input
+                        id="working-dir"
+                        defaultValue="~/projects"
+                        className="h-[34px] text-[13px] font-mono bg-muted"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Model selector */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      Default Model
+                      <span className="text-[10.5px] font-normal text-txt-3 bg-muted px-1.5 py-px rounded">
+                        optional
+                      </span>
+                    </label>
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Select default model">
+                      {models.map((model) => (
+                        <button
+                          key={model}
+                          aria-pressed={selectedModel === model}
+                          onClick={() => setSelectedModel(model)}
+                          className={cn(
+                            "px-3 py-[5px] rounded-full border text-xs font-medium cursor-pointer transition-all",
+                            selectedModel === model
+                              ? "bg-agent-purple-dim border-primary text-primary"
+                              : "border-border text-muted-foreground hover:border-input hover:text-foreground"
+                          )}
+                        >
+                          {model}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* CLI Flags */}
+                  <SectionDivider label="CLI Flags" />
+                  <table className="w-full border-collapse" aria-label="CLI flags">
+                    <thead>
+                      <tr>
+                        <th className="text-left text-[10.5px] font-semibold tracking-wide uppercase text-txt-3 pb-2.5 border-b border-border">
+                          Flag
+                        </th>
+                        <th className="text-left text-[10.5px] font-semibold tracking-wide uppercase text-txt-3 pb-2.5 border-b border-border">
+                          Value
+                        </th>
+                        <th className="text-left text-[10.5px] font-semibold tracking-wide uppercase text-txt-3 pb-2.5 border-b border-border">
+                          Scope
+                        </th>
+                        <th className="w-10 pb-2.5 border-b border-border" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cliFlags.map((flag) => (
+                        <tr key={flag.id}>
+                          <td className="py-2.5 border-b border-border text-[13px]">
+                            <span className="font-mono text-xs text-primary">
+                              {flag.name}
+                            </span>
+                          </td>
+                          <td className="py-2.5 border-b border-border text-[13px]">
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {flag.value}
+                            </span>
+                          </td>
+                          <td className="py-2.5 border-b border-border">
+                            <span className="text-[11px] text-txt-3">
+                              {flag.scope}
+                            </span>
+                          </td>
+                          <td className="py-2.5 border-b border-border">
+                            <button
+                              className="size-7 rounded-md border border-border bg-transparent text-txt-3 cursor-pointer flex items-center justify-center hover:bg-agent-red-dim hover:text-agent-red hover:border-transparent transition-colors"
+                              aria-label={`Remove flag ${flag.name}`}
+                            >
+                              <X className="size-3" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Inline add flag */}
+                  <div className="flex items-center gap-2 p-2 bg-card border border-dashed border-input rounded-lg">
+                    <Plus className="size-3.5 opacity-30" />
+                    <Input
+                      placeholder="--flag-name…"
+                      className="h-[30px] w-[200px] text-xs font-mono"
+                    />
+                    <Input
+                      placeholder="value…"
+                      className="h-[30px] w-[120px] text-xs font-mono"
+                    />
+                    <Button variant="outline" size="sm" className="h-[30px] text-xs">
+                      Add Flag
+                    </Button>
+                  </div>
+
+                  {/* System Prompt */}
+                  <SectionDivider label="System Prompt Override" />
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5" htmlFor="system-prompt">
+                      System Prompt
+                      <span className="text-[10.5px] font-normal text-txt-3 bg-muted px-1.5 py-px rounded">
+                        optional
+                      </span>
+                    </label>
+                    <Textarea
+                      id="system-prompt"
+                      className="min-h-[80px] text-[13px] font-mono bg-muted leading-relaxed"
+                      defaultValue="You are an expert software engineer. Always prefer minimal, clean code solutions. Use TypeScript when possible."
+                      placeholder="Custom system prompt appended to default…"
+                    />
+                    <span className="text-[11.5px] text-txt-3">
+                      Appended to the agent&apos;s default system prompt
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
