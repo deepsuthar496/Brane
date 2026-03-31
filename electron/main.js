@@ -1,7 +1,51 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
+const { discoverCLIs } = require("./cli-discovery");
+const mcpManager = require("./mcp-manager");
 
 const isDev = !app.isPackaged;
+
+// Window control IPC handlers
+ipcMain.on("window-minimize", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) win.minimize();
+});
+ipcMain.on("window-maximize", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    if (win.isMaximized()) {
+      win.unmaximize();
+    } else {
+      win.maximize();
+    }
+  }
+});
+ipcMain.on("window-close", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) win.close();
+});
+
+// CLI discovery IPC handler
+ipcMain.handle("discover-clis", async () => {
+  return await discoverCLIs();
+});
+
+// MCP management IPC handlers
+ipcMain.handle("get-mcp-servers", async () => {
+  return await mcpManager.getMcpServers();
+});
+
+ipcMain.handle("add-mcp-server", async (event, { id, config }) => {
+  return await mcpManager.addMcpServer(id, config);
+});
+
+ipcMain.handle("remove-mcp-server", async (event, id) => {
+  return await mcpManager.removeMcpServer(id);
+});
+
+ipcMain.handle("toggle-mcp-server", async (event, { id, enabled }) => {
+  return await mcpManager.toggleMcpServer(id, enabled);
+});
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -25,17 +69,6 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, "../out/index.html"));
   }
-
-  // Window control IPC handlers
-  ipcMain.on("window-minimize", () => mainWindow.minimize());
-  ipcMain.on("window-maximize", () => {
-    if (mainWindow.isMaximized()) {
-      mainWindow.unmaximize();
-    } else {
-      mainWindow.maximize();
-    }
-  });
-  ipcMain.on("window-close", () => mainWindow.close());
 }
 
 app.whenReady().then(createWindow);

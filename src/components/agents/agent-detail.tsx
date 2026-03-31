@@ -60,6 +60,11 @@ export function AgentDetailView({ agent }: AgentDetailViewProps) {
           <p className="text-[13px] text-txt-3 font-mono mt-1.5">
             {agent.version} <span className="text-border mx-2">•</span> {agent.provider}
           </p>
+          {agent.fullPath && (
+            <p className="text-[11px] text-txt-3 font-mono mt-2 bg-surface-2 px-2 py-1 rounded border border-border/40 truncate" title={agent.fullPath}>
+              {agent.fullPath}
+            </p>
+          )}
         </div>
       </div>
 
@@ -85,6 +90,11 @@ export function AgentDetailView({ agent }: AgentDetailViewProps) {
           Configuration Tags
         </h3>
         <div className="flex flex-wrap gap-2">
+          {!agent.discovered && (
+             <span className={cn("text-[11.5px] font-medium px-2.5 py-1 rounded-md border", tagStyles.error)}>
+                System: CLI not found in PATH
+             </span>
+          )}
           {agent.tags.map((tag) => (
             <span
               key={tag.label}
@@ -96,7 +106,7 @@ export function AgentDetailView({ agent }: AgentDetailViewProps) {
               {tag.label}
             </span>
           ))}
-          {agent.tags.length === 0 && (
+          {agent.tags.length === 0 && agent.discovered && (
             <span className="text-xs text-txt-3 italic">No tags associated.</span>
           )}
         </div>
