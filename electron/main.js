@@ -62,8 +62,20 @@ ipcMain.handle("registry:uninstallSkill", async (event, id) => {
   return await registryManager.uninstallSkill(id);
 });
 
+ipcMain.handle("registry:installMcp", async (event, mcp) => {
+  return await registryManager.installMcp(mcp);
+});
+
+ipcMain.handle("registry:uninstallMcp", async (event, id) => {
+  return await registryManager.uninstallMcp(id);
+});
+
 ipcMain.handle("registry:getInstalledSkills", async () => {
   return await registryManager.getInstalledSkills();
+});
+
+ipcMain.handle("registry:getInstalledMcps", async () => {
+  return await registryManager.getInstalledMcps();
 });
 
 ipcMain.handle("registry:toggleSkill", async (event, id, enabled) => {

@@ -112,6 +112,10 @@ export function getRegistryUrls(repo: string) {
       fallback: `${fallbackUrl}/registry/skills/${cat}/${id}/SKILL.md` 
     }),
     mcps: { cdn: `${baseUrl}/registry/mcps/all.json`, fallback: `${fallbackUrl}/registry/mcps/all.json` },
+    mcpCategory: (cat: string) => ({ 
+      cdn: `${baseUrl}/registry/mcps/${cat}.json`, 
+      fallback: `${fallbackUrl}/registry/mcps/${cat}.json` 
+    }),
     prompts: { cdn: `${baseUrl}/registry/prompts/all.json`, fallback: `${fallbackUrl}/registry/prompts/all.json` },
   };
 }

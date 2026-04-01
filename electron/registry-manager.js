@@ -3,6 +3,7 @@ const path = require('path')
 const os = require('os')
 const https = require('https')
 const credentialsManager = require('./credentials-manager')
+const mcpManager = require('./mcp-manager')
 
 const SKILLS_DIR = path.join(os.homedir(), '.agents', 'skills')
 const LOCK_PATH = path.join(__dirname, '..', 'skills-lock.json')
@@ -129,9 +130,54 @@ async function uninstallSkill(skillId) {
   return { success: true }
 }
 
+async function installMcp(mcp) {
+  // 1. Prepare configuration for mcp-manager
+  const config = {
+    command: mcp.command,
+    args: mcp.args,
+    env: mcp.env || {}
+  }
+  
+  if (mcp.url) {
+    config.url = mcp.url
+  }
+
+  // 2. Add to Gemini CLI settings via mcp-manager
+  await mcpManager.addMcpServer(mcp.id, config)
+
+  // 3. Update skills-lock.json to track it came from registry
+  const lock = await readLock()
+  lock.installed.mcps[mcp.id] = {
+    version: mcp.version || '1.0.0',
+    installedAt: new Date().toISOString(),
+    sourceCategory: mcp.category,
+    enabled: true
+  }
+  await writeLock(lock)
+
+  return { success: true }
+}
+
+async function uninstallMcp(mcpId) {
+  // 1. Remove from Gemini CLI settings
+  await mcpManager.removeMcpServer(mcpId)
+
+  // 2. Update skills-lock.json
+  const lock = await readLock()
+  delete lock.installed.mcps[mcpId]
+  await writeLock(lock)
+
+  return { success: true }
+}
+
 async function getInstalledSkills() {
   const lock = await readLock()
   return lock.installed.skills || {}
+}
+
+async function getInstalledMcps() {
+  const lock = await readLock()
+  return lock.installed.mcps || {}
 }
 
 async function toggleSkill(skillId, enabled) {
@@ -147,6 +193,9 @@ module.exports = {
   fetchRegistryData,
   installSkill,
   uninstallSkill,
+  installMcp,
+  uninstallMcp,
   getInstalledSkills,
+  getInstalledMcps,
   toggleSkill
 }

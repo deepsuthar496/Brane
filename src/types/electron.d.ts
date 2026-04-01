@@ -1,5 +1,5 @@
 import { Agent, MCPServer } from "@/lib/data";
-import { SkillEntry, InstalledItem } from "@/lib/registry";
+import { SkillEntry, McpEntry, InstalledItem } from "@/lib/registry";
 
 export interface IElectronAPI {
   minimize: () => void;
@@ -15,7 +15,10 @@ export interface IElectronAPI {
   fetchRegistryData: <T>(urlPair: { cdn: string; fallback: string }) => Promise<T>;
   installSkill: (skill: SkillEntry) => Promise<{ success: boolean }>;
   uninstallSkill: (id: string) => Promise<{ success: boolean }>;
+  installMcp: (mcp: McpEntry) => Promise<{ success: boolean }>;
+  uninstallMcp: (id: string) => Promise<{ success: boolean }>;
   getInstalledSkills: () => Promise<Record<string, InstalledItem>>;
+  getInstalledMcps: () => Promise<Record<string, InstalledItem>>;
   toggleSkill: (id: string, enabled: boolean) => Promise<{ success: boolean }>;
   getGithubToken: () => Promise<string | null>;
   setGithubToken: (token: string) => Promise<boolean>;
