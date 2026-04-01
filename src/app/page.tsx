@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Titlebar } from "@/components/layout/titlebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AgentDetailView } from "@/components/agents/agent-detail";
+import { AgentIcon } from "@/components/agents/agent-icon";
 import { Agent } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -127,7 +128,7 @@ export default function AgentsPage() {
                           "size-7 rounded-md bg-surface-3 border flex items-center justify-center text-sm shrink-0",
                           isSelected ? "border-border/60" : "border-border/30"
                         )}>
-                          {agent.icon}
+                          <AgentIcon icon={agent.icon} className="size-4" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className={cn("text-[13px] font-medium truncate", isSelected ? "text-foreground" : "text-txt-2")}>

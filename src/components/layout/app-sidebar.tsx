@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { agents } from "@/lib/data";
+import { AgentIcon } from "@/components/agents/agent-icon";
 
 const mainNav = [
   { label: "Agents", icon: Monitor, href: "/", badge: "6" },
@@ -92,10 +93,10 @@ export function AppSidebar() {
         {quickAccess.map((agent) => (
           <button
             key={agent.label}
-            className="flex items-center gap-[9px] px-2 py-1.5 rounded-md cursor-pointer text-[13px] font-[450] w-full text-left text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="flex items-center gap-[9px] px-2.5 py-1.5 rounded-md cursor-pointer text-[13px] font-[450] w-full text-left text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <span className="size-4 flex items-center justify-center shrink-0">
-              {agent.icon}
+              <AgentIcon icon={agent.icon} className="size-3.5" />
             </span>
             {agent.label}
             <div

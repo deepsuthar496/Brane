@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import type { Agent } from "@/lib/data";
+import { AgentIcon } from "./agent-icon";
 import { Terminal } from "lucide-react";
 
 const tagStyles: Record<string, string> = {
@@ -48,7 +49,7 @@ export function AgentDetailView({ agent }: AgentDetailViewProps) {
       {/* Top Header */}
       <div className="flex items-start gap-4 mb-8">
         <div className="size-14 rounded-xl border border-border/50 bg-surface-3 flex items-center justify-center text-2xl shrink-0 shadow-sm">
-          {agent.icon}
+          <AgentIcon icon={agent.icon} className="size-8" />
         </div>
         <div className="flex-1 min-w-0 pt-1">
           <div className="flex items-center gap-3">

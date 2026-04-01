@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import { AgentIcon } from "./agent-icon";
 import type { Agent } from "@/lib/data";
 
 const gradientMap: Record<string, string> = {
@@ -60,7 +61,7 @@ export function AgentCard({ agent }: AgentCardProps) {
       {/* Top: icon + meta + status */}
       <div className="flex items-center gap-3 mb-3.5">
         <div className="size-[38px] rounded-[10px] border border-border bg-muted flex items-center justify-center text-lg shrink-0">
-          {agent.icon}
+          <AgentIcon icon={agent.icon} className="size-5" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-foreground tracking-tight">

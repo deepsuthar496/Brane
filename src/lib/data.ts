@@ -61,7 +61,7 @@ export const agents: Agent[] = [
   {
     id: "claude",
     name: "Claude Code",
-    icon: "🤖",
+    icon: "material-icon-theme:claude",
     version: "v1.0.33",
     provider: "@anthropic",
     status: "running",
@@ -80,7 +80,7 @@ export const agents: Agent[] = [
   {
     id: "gemini",
     name: "Gemini CLI",
-    icon: "✨",
+    icon: "vscode-icons:file-type-gemini",
     version: "v0.4.1",
     provider: "@google",
     status: "running",
@@ -113,7 +113,7 @@ export const agents: Agent[] = [
   {
     id: "codex",
     name: "Codex CLI",
-    icon: "📦",
+    icon: "proicons:openai",
     version: "v0.2.0",
     provider: "@openai",
     status: "stopped",
