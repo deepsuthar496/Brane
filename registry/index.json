@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "updatedAt": "2026-04-01",
+  "categories": {
+    "skills": [
+      { "id": "documents", "label": "Documents", "icon": "📄", "count": 4 },
+      { "id": "creative", "label": "Creative", "icon": "🎨", "count": 2 }
+    ],
+    "mcps": [
+      { "id": "system", "label": "System", "count": 2 }
+    ],
+    "prompts": []
+  },
+  "featured": ["docx", "pdf"],
+  "new": ["canvas", "algorithmic-art"],
+  "collections": [
+    {
+      "id": "getting-started",
+      "label": "Getting started",
+      "skillIds": ["docx", "pdf", "canvas"]
+    }
+  ]
+}

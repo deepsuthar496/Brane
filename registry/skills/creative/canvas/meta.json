@@ -1,0 +1,19 @@
+{
+  "id": "canvas",
+  "name": "Canvas Assistant",
+  "version": "1.0.0",
+  "author": "anthropic",
+  "authorUrl": "https://github.com/anthropics/skills",
+  "license": "apache-2.0",
+  "homepage": "https://github.com/anthropics/skills/tree/main/skills/canvas",
+  "description": "Interactive visual workspace for diagrams and art.",
+  "readme": "## Overview\n\nCreate visual diagrams...",
+  "changelog": [
+    "1.0.0 — Initial release"
+  ],
+  "screenshots": [],
+  "size": "6KB",
+  "installPath": "registry/skills/creative/canvas/SKILL.md",
+  "requiredCredentials": [],
+  "optionalDependencies": []
+}

@@ -1,0 +1,30 @@
+{
+  "skills": [
+    {
+      "id": "canvas",
+      "name": "Canvas Assistant",
+      "description": "Interactive visual workspace for diagrams and art",
+      "icon": "🖼️",
+      "version": "1.0.0",
+      "author": "anthropic",
+      "license": "apache-2.0",
+      "tags": ["visual", "diagrams", "art"],
+      "compatibleAgents": ["claude", "gemini"],
+      "featured": true,
+      "path": "registry/skills/creative/canvas/SKILL.md"
+    },
+    {
+      "id": "algorithmic-art",
+      "name": "Algorithmic Art",
+      "description": "Generate generative art via code",
+      "icon": "🎨",
+      "version": "1.0.0",
+      "author": "anthropic",
+      "license": "apache-2.0",
+      "tags": ["generative", "art", "code"],
+      "compatibleAgents": ["claude", "codex"],
+      "featured": false,
+      "path": "registry/skills/creative/algorithmic-art/SKILL.md"
+    }
+  ]
+}

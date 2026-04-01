@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const { discoverCLIs } = require("./cli-discovery");
 const mcpManager = require("./mcp-manager");
+const registryManager = require("./registry-manager");
 
 const isDev = !app.isPackaged;
 
@@ -45,6 +46,23 @@ ipcMain.handle("remove-mcp-server", async (event, id) => {
 
 ipcMain.handle("toggle-mcp-server", async (event, { id, enabled }) => {
   return await mcpManager.toggleMcpServer(id, enabled);
+});
+
+// Registry IPC handlers
+ipcMain.handle("registry:installSkill", async (event, skill) => {
+  return await registryManager.installSkill(skill);
+});
+
+ipcMain.handle("registry:uninstallSkill", async (event, id) => {
+  return await registryManager.uninstallSkill(id);
+});
+
+ipcMain.handle("registry:getInstalledSkills", async () => {
+  return await registryManager.getInstalledSkills();
+});
+
+ipcMain.handle("registry:toggleSkill", async (event, id, enabled) => {
+  return await registryManager.toggleSkill(id, enabled);
 });
 
 function createWindow() {

@@ -1,0 +1,21 @@
+{
+  "id": "docx",
+  "name": "DOCX Generator",
+  "version": "1.2.0",
+  "author": "anthropic",
+  "authorUrl": "https://github.com/anthropics/skills",
+  "license": "apache-2.0",
+  "homepage": "https://github.com/anthropics/skills/tree/main/skills/docx",
+  "description": "Creates professional Word documents from AI output with full formatting support.",
+  "readme": "## Overview\n\nThe DOCX skill enables Claude to create...",
+  "changelog": [
+    "1.2.0 — Added table-of-contents support",
+    "1.1.0 — Fixed landscape orientation",
+    "1.0.0 — Initial release"
+  ],
+  "screenshots": [],
+  "size": "4KB",
+  "installPath": "registry/skills/documents/docx/SKILL.md",
+  "requiredCredentials": [],
+  "optionalDependencies": ["pandoc", "libreoffice"]
+}

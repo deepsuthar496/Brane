@@ -1,0 +1,20 @@
+{
+  "id": "pdf",
+  "name": "PDF Toolkit",
+  "version": "1.1.0",
+  "author": "anthropic",
+  "authorUrl": "https://github.com/anthropics/skills",
+  "license": "apache-2.0",
+  "homepage": "https://github.com/anthropics/skills/tree/main/skills/pdf",
+  "description": "Read, create, merge, and annotate PDFs.",
+  "readme": "## Overview\n\nThe PDF skill enables management of PDF files...",
+  "changelog": [
+    "1.1.0 — Added annotation support",
+    "1.0.0 — Initial release"
+  ],
+  "screenshots": [],
+  "size": "5KB",
+  "installPath": "registry/skills/documents/pdf/SKILL.md",
+  "requiredCredentials": [],
+  "optionalDependencies": []
+}

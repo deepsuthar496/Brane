@@ -1,0 +1,56 @@
+{
+  "skills": [
+    {
+      "id": "docx",
+      "name": "DOCX Generator",
+      "description": "Create Word documents from AI output",
+      "icon": "📄",
+      "version": "1.2.0",
+      "author": "anthropic",
+      "license": "apache-2.0",
+      "tags": ["word", "office", "files"],
+      "compatibleAgents": ["claude", "gemini", "codex", "cursor"],
+      "featured": true,
+      "path": "registry/skills/documents/docx/SKILL.md"
+    },
+    {
+      "id": "pdf",
+      "name": "PDF Toolkit",
+      "description": "Read, create, merge, and annotate PDFs",
+      "icon": "📑",
+      "version": "1.1.0",
+      "author": "anthropic",
+      "license": "apache-2.0",
+      "tags": ["pdf", "documents"],
+      "compatibleAgents": ["claude", "codex"],
+      "featured": false,
+      "path": "registry/skills/documents/pdf/SKILL.md"
+    },
+    {
+      "id": "pptx",
+      "name": "PowerPoint Builder",
+      "description": "Generate PowerPoint presentations",
+      "icon": "📊",
+      "version": "1.0.0",
+      "author": "anthropic",
+      "license": "apache-2.0",
+      "tags": ["presentation", "office"],
+      "compatibleAgents": ["claude", "gemini"],
+      "featured": false,
+      "path": "registry/skills/documents/pptx/SKILL.md"
+    },
+    {
+      "id": "xlsx",
+      "name": "Excel Automator",
+      "description": "Manage and analyze spreadsheet data",
+      "icon": "💹",
+      "version": "1.0.0",
+      "author": "anthropic",
+      "license": "apache-2.0",
+      "tags": ["excel", "data", "spreadsheet"],
+      "compatibleAgents": ["claude", "gemini", "codex"],
+      "featured": false,
+      "path": "registry/skills/documents/xlsx/SKILL.md"
+    }
+  ]
+}

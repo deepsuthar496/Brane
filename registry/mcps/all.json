@@ -1,0 +1,26 @@
+{
+  "mcps": [
+    {
+      "id": "filesystem",
+      "name": "Filesystem",
+      "icon": "📁",
+      "category": "system",
+      "description": "Read and write local files",
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "~/projects"],
+      "scope": "global",
+      "configPath": "registry/mcps/filesystem/config.json"
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "icon": "🐙",
+      "category": "system",
+      "description": "Read repos, issues, PRs",
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-github"],
+      "requiredCredentials": ["GITHUB_TOKEN"],
+      "configPath": "registry/mcps/github/config.json"
+    }
+  ]
+}

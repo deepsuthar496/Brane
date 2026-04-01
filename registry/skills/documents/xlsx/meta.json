@@ -1,0 +1,19 @@
+{
+  "id": "xlsx",
+  "name": "Excel Automator",
+  "version": "1.0.0",
+  "author": "anthropic",
+  "authorUrl": "https://github.com/anthropics/skills",
+  "license": "apache-2.0",
+  "homepage": "https://github.com/anthropics/skills/tree/main/skills/xlsx",
+  "description": "Manage and analyze spreadsheet data.",
+  "readme": "## Overview\n\nAutomate Excel tasks...",
+  "changelog": [
+    "1.0.0 — Initial release"
+  ],
+  "screenshots": [],
+  "size": "4KB",
+  "installPath": "registry/skills/documents/xlsx/SKILL.md",
+  "requiredCredentials": [],
+  "optionalDependencies": []
+}

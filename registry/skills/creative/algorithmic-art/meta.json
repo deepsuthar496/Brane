@@ -1,0 +1,19 @@
+{
+  "id": "algorithmic-art",
+  "name": "Algorithmic Art",
+  "version": "1.0.0",
+  "author": "anthropic",
+  "authorUrl": "https://github.com/anthropics/skills",
+  "license": "apache-2.0",
+  "homepage": "https://github.com/anthropics/skills/tree/main/skills/algorithmic-art",
+  "description": "Generate generative art via code.",
+  "readme": "## Overview\n\nCode-based art generation...",
+  "changelog": [
+    "1.0.0 — Initial release"
+  ],
+  "screenshots": [],
+  "size": "2KB",
+  "installPath": "registry/skills/creative/algorithmic-art/SKILL.md",
+  "requiredCredentials": [],
+  "optionalDependencies": []
+}

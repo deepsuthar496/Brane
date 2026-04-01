@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Search, Trash2, Globe, Terminal } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Trash2, Globe, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/layout/page-header";
@@ -20,10 +20,10 @@ export default function MCPPage() {
   const [newId, setNewId] = useState("");
   const [newCommand, setNewCommand] = useState("");
 
-  const loadServers = async () => {
+  const loadServers = useCallback(async () => {
     if (typeof window !== "undefined" && window.electronAPI) {
       const realServers = await window.electronAPI.getMcpServers();
-      setServers((realServers || []).map((s: any) => ({
+      setServers((realServers || []).map((s: MCPServer) => ({
         id: s.id,
         name: s.id,
         icon: s.url ? "🌐" : "⚙️",
@@ -35,9 +35,11 @@ export default function MCPPage() {
         category: s.url ? "GOOGLE" : "SYSTEM"
       } as MCPServer)));
     }
-  };
+  }, []);
 
-  useEffect(() => { loadServers(); }, []);
+  useEffect(() => {
+    loadServers();
+  }, [loadServers]);
 
   const handleToggle = async (id: string, enabled: boolean) => {
     if (typeof window !== "undefined" && window.electronAPI) {

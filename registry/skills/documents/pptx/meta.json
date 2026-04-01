@@ -1,0 +1,19 @@
+{
+  "id": "pptx",
+  "name": "PowerPoint Builder",
+  "version": "1.0.0",
+  "author": "anthropic",
+  "authorUrl": "https://github.com/anthropics/skills",
+  "license": "apache-2.0",
+  "homepage": "https://github.com/anthropics/skills/tree/main/skills/pptx",
+  "description": "Generate PowerPoint presentations.",
+  "readme": "## Overview\n\nGenerate slides easily...",
+  "changelog": [
+    "1.0.0 — Initial release"
+  ],
+  "screenshots": [],
+  "size": "3KB",
+  "installPath": "registry/skills/documents/pptx/SKILL.md",
+  "requiredCredentials": [],
+  "optionalDependencies": []
+}
