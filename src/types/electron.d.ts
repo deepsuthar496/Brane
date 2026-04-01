@@ -12,6 +12,7 @@ export interface IElectronAPI {
   toggleMcpServer: (id: string, enabled: boolean) => Promise<boolean>;
   
   // Registry methods
+  fetchRegistryData: <T>(urlPair: { cdn: string; fallback: string }) => Promise<T>;
   installSkill: (skill: SkillEntry) => Promise<{ success: boolean }>;
   uninstallSkill: (id: string) => Promise<{ success: boolean }>;
   getInstalledSkills: () => Promise<Record<string, InstalledItem>>;

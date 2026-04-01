@@ -50,6 +50,10 @@ ipcMain.handle("toggle-mcp-server", async (event, { id, enabled }) => {
 });
 
 // Registry IPC handlers
+ipcMain.handle("registry:fetchData", async (event, urlPair) => {
+  return await registryManager.fetchRegistryData(urlPair);
+});
+
 ipcMain.handle("registry:installSkill", async (event, skill) => {
   return await registryManager.installSkill(skill);
 });

@@ -7,26 +7,62 @@ const credentialsManager = require('./credentials-manager')
 const SKILLS_DIR = path.join(os.homedir(), 'brane', 'skills')
 const LOCK_PATH = path.join(__dirname, '..', 'skills-lock.json')
 
-async function fetchText(url, token) {
-  const options = {}
-  if (token) {
-    options.headers = {
-      'Authorization': `token ${token}`,
+/**
+ * Helper to fetch text or JSON from a URL with optional token
+ */
+async function fetchFromUrl(url, token) {
+  const options = {
+    headers: {
       'User-Agent': 'Brane-Desktop-App'
     }
   }
+  
+  if (token) {
+    options.headers['Authorization'] = `token ${token}`
+  }
 
   return new Promise((resolve, reject) => {
-    https.get(url, options, res => {
-      if (res.statusCode >= 400) {
-        reject(new Error(`Status: ${res.statusCode}`))
-        return
+    https.get(url, options, (res) => {
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        // Handle redirects (common for GitHub/jsDelivr)
+        return fetchFromUrl(res.headers.location, token).then(resolve).catch(reject)
       }
+
+      if (res.statusCode >= 400) {
+        return reject(new Error(`HTTP ${res.statusCode}: ${url}`))
+      }
+
       let data = ''
       res.on('data', chunk => data += chunk)
       res.on('end', () => resolve(data))
-    }).on('error', reject)
+    }).on('error', (err) => {
+      reject(err)
+    })
   })
+}
+
+/**
+ * Public IPC: Fetches registry data with CDN-to-Fallback logic
+ */
+async function fetchRegistryData(urlPair) {
+  const token = await credentialsManager.getGithubToken()
+  
+  // 1. Try CDN first
+  try {
+    const data = await fetchFromUrl(urlPair.cdn)
+    return JSON.parse(data)
+  } catch (e) {
+    console.warn(`Registry CDN fetch failed, trying fallback: ${urlPair.fallback}`, e.message)
+    
+    // 2. Try Fallback (GitHub Raw) with token
+    try {
+      const data = await fetchFromUrl(urlPair.fallback, token)
+      return JSON.parse(data)
+    } catch (e2) {
+      console.error(`Registry fallback fetch failed: ${urlPair.fallback}`, e2.message)
+      throw new Error(`Failed to fetch registry data from both CDN and Fallback.`)
+    }
+  }
 }
 
 async function readLock() {
@@ -53,15 +89,15 @@ async function installSkill(skill) {
   const baseUrl = `https://cdn.jsdelivr.net/gh/${repo}`
   const fallbackUrl = `https://raw.githubusercontent.com/${repo}/main`
   
-  // 1. Fetch the SKILL.md content (try CDN then Fallback)
+  // 1. Fetch the SKILL.md content
   let content
   try {
     const url = `${baseUrl}/${skill.path}`
-    content = await fetchText(url)
+    content = await fetchFromUrl(url)
   } catch (e) {
-    console.warn("CDN fetch failed during install, trying fallback...", e)
+    console.warn("CDN fetch failed during install, trying fallback...", e.message)
     const url = `${fallbackUrl}/${skill.path}`
-    content = await fetchText(url, token)
+    content = await fetchFromUrl(url, token)
   }
 
   // 2. Write to local skills directory
@@ -108,6 +144,7 @@ async function toggleSkill(skillId, enabled) {
 }
 
 module.exports = {
+  fetchRegistryData,
   installSkill,
   uninstallSkill,
   getInstalledSkills,

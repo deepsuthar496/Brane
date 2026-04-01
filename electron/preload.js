@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   addMcpServer: (id, config) => ipcRenderer.invoke("add-mcp-server", { id, config }),
   removeMcpServer: (id) => ipcRenderer.invoke("remove-mcp-server", id),
   toggleMcpServer: (id, enabled) => ipcRenderer.invoke("toggle-mcp-server", { id, enabled }),
+  fetchRegistryData: (urlPair) => ipcRenderer.invoke("registry:fetchData", urlPair),
   installSkill: (skill) => ipcRenderer.invoke("registry:installSkill", skill),
   uninstallSkill: (id) => ipcRenderer.invoke("registry:uninstallSkill", id),
   getInstalledSkills: () => ipcRenderer.invoke("registry:getInstalledSkills"),

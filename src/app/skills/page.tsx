@@ -58,7 +58,7 @@ export default function SkillsPage() {
 
   const fetchRegistryIndex = useCallback(async () => {
     try {
-      const data = await fetchWithFallback<RegistryIndex>(registryUrls.index, githubToken);
+      const data = await window.electronAPI.fetchRegistryData<RegistryIndex>(registryUrls.index);
       setRegistryIndex(data);
       if (data.categories.skills.length > 0 && !activeCategory) {
         setActiveCategory(data.categories.skills[0].id);
@@ -66,14 +66,13 @@ export default function SkillsPage() {
     } catch (error) {
       console.error("Failed to fetch registry index:", error);
     }
-  }, [activeCategory, githubToken, registryUrls]);
+  }, [activeCategory, registryUrls]);
 
   const fetchCategorySkills = useCallback(async (categoryId: string) => {
     setLoading(true);
     try {
-      const data = await fetchWithFallback<{ skills: SkillEntry[] }>(
-        registryUrls.skillCategory(categoryId), 
-        githubToken
+      const data = await window.electronAPI.fetchRegistryData<{ skills: SkillEntry[] }>(
+        registryUrls.skillCategory(categoryId)
       );
       setCategorySkills(data.skills || []);
     } catch (error) {
@@ -81,7 +80,7 @@ export default function SkillsPage() {
     } finally {
       setLoading(false);
     }
-  }, [githubToken, registryUrls]);
+  }, [registryUrls]);
 
   useEffect(() => {
     fetchTokenAndRepo();
@@ -89,7 +88,7 @@ export default function SkillsPage() {
   }, [fetchTokenAndRepo, fetchInstalled]);
 
   useEffect(() => {
-    if (registryUrls) {
+    if (registryUrls && window.electronAPI) {
       fetchRegistryIndex();
     }
   }, [registryUrls, fetchRegistryIndex]);
