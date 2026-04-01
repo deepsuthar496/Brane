@@ -153,12 +153,12 @@ export const mcpServers: MCPServer[] = [
 ];
 
 export const skills: Skill[] = [
-  { id: "docx", name: "DOCX Generator", icon: "📄", path: "/mnt/skills/public/docx/SKILL.md", description: "Word document creation", scope: "claude · gemini", enabled: true },
-  { id: "xlsx", name: "XLSX Builder", icon: "📊", path: "/mnt/skills/public/xlsx/SKILL.md", description: "Spreadsheet generation", scope: "claude", enabled: true },
-  { id: "pdf", name: "PDF Toolkit", icon: "📑", path: "/mnt/skills/public/pdf/SKILL.md", description: "PDF read & create", scope: "claude · codex", enabled: true },
-  { id: "ui-design", name: "Modern UI Design", icon: "🎨", path: "/mnt/skills/user/modern-ui-design/SKILL.md", description: "Frontend excellence", scope: "claude", enabled: true },
-  { id: "file-reading", name: "File Reading", icon: "📖", path: "/mnt/skills/public/file-reading/SKILL.md", description: "Smart file ingestion", scope: "claude · gemini", enabled: false },
-  { id: "product-knowledge", name: "Product Self-Knowledge", icon: "🔍", path: "/mnt/skills/public/product-self-knowledge/SKILL.md", description: "API & product facts", scope: "claude", enabled: true },
+  { id: "docx", name: "DOCX Generator", icon: "📄", path: "~/.agents/skills/docx/SKILL.md", description: "Word document creation", scope: "claude · gemini", enabled: true },
+  { id: "xlsx", name: "XLSX Builder", icon: "📊", path: "~/.agents/skills/xlsx/SKILL.md", description: "Spreadsheet generation", scope: "claude", enabled: true },
+  { id: "pdf", name: "PDF Toolkit", icon: "📑", path: "~/.agents/skills/pdf/SKILL.md", description: "PDF read & create", scope: "claude · codex", enabled: true },
+  { id: "ui-design", name: "Modern UI Design", icon: "🎨", path: "~/.agents/skills/modern-ui-design/SKILL.md", description: "Frontend excellence", scope: "claude", enabled: true },
+  { id: "file-reading", name: "File Reading", icon: "📖", path: "~/.agents/skills/file-reading/SKILL.md", description: "Smart file ingestion", scope: "claude · gemini", enabled: false },
+  { id: "product-knowledge", name: "Product Self-Knowledge", icon: "🔍", path: "~/.agents/skills/product-self-knowledge/SKILL.md", description: "API & product facts", scope: "claude", enabled: true },
 ];
 
 export const credentials: Credential[] = [

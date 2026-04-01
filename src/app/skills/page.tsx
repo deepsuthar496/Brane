@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Plus, Search, Grid, List, Package, Globe, Check, Download, Loader2, Filter } from "lucide-react";
+import { Plus, Search, Grid, List, Package, Globe, Check, Download, Loader2, Filter, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -111,6 +111,17 @@ export default function SkillsPage() {
   const handleToggle = async (id: string, enabled: boolean) => {
     if (window.electronAPI) {
       const result = await window.electronAPI.toggleSkill(id, enabled);
+      if (result.success) {
+        await fetchInstalled();
+      }
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm(`Are you sure you want to permanently delete the "${id}" skill?`)) return;
+    
+    if (window.electronAPI) {
+      const result = await window.electronAPI.uninstallSkill(id);
       if (result.success) {
         await fetchInstalled();
       }
@@ -252,6 +263,15 @@ export default function SkillsPage() {
                                 />
                               </div>
                             </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="size-8 p-0 text-txt-4 hover:text-agent-red hover:bg-agent-red-dim transition-colors"
+                              onClick={() => handleDelete(id)}
+                              aria-label={`Delete ${id} skill`}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
                           </div>
                         </div>
                       ))

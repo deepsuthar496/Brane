@@ -4,7 +4,7 @@ const os = require('os')
 const https = require('https')
 const credentialsManager = require('./credentials-manager')
 
-const SKILLS_DIR = path.join(os.homedir(), 'brane', 'skills')
+const SKILLS_DIR = path.join(os.homedir(), '.agents', 'skills')
 const LOCK_PATH = path.join(__dirname, '..', 'skills-lock.json')
 
 /**
