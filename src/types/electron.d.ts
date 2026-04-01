@@ -16,6 +16,10 @@ export interface IElectronAPI {
   uninstallSkill: (id: string) => Promise<{ success: boolean }>;
   getInstalledSkills: () => Promise<Record<string, InstalledItem>>;
   toggleSkill: (id: string, enabled: boolean) => Promise<{ success: boolean }>;
+  getGithubToken: () => Promise<string | null>;
+  setGithubToken: (token: string) => Promise<boolean>;
+  getRegistryRepo: () => Promise<string>;
+  setRegistryRepo: (repo: string) => Promise<boolean>;
 
   isElectron: boolean;
   platform: string;

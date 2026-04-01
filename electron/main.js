@@ -3,6 +3,7 @@ const path = require("path");
 const { discoverCLIs } = require("./cli-discovery");
 const mcpManager = require("./mcp-manager");
 const registryManager = require("./registry-manager");
+const credentialsManager = require("./credentials-manager");
 
 const isDev = !app.isPackaged;
 
@@ -63,6 +64,23 @@ ipcMain.handle("registry:getInstalledSkills", async () => {
 
 ipcMain.handle("registry:toggleSkill", async (event, id, enabled) => {
   return await registryManager.toggleSkill(id, enabled);
+});
+
+// Credentials IPC handlers
+ipcMain.handle("credentials:getGithubToken", async () => {
+  return await credentialsManager.getGithubToken();
+});
+
+ipcMain.handle("credentials:setGithubToken", async (event, token) => {
+  return await credentialsManager.setGithubToken(token);
+});
+
+ipcMain.handle("credentials:getRegistryRepo", async () => {
+  return await credentialsManager.getRegistryRepo();
+});
+
+ipcMain.handle("credentials:setRegistryRepo", async (event, repo) => {
+  return await credentialsManager.setRegistryRepo(repo);
 });
 
 function createWindow() {

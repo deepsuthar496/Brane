@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   uninstallSkill: (id) => ipcRenderer.invoke("registry:uninstallSkill", id),
   getInstalledSkills: () => ipcRenderer.invoke("registry:getInstalledSkills"),
   toggleSkill: (id, enabled) => ipcRenderer.invoke("registry:toggleSkill", id, enabled),
+  getGithubToken: () => ipcRenderer.invoke("credentials:getGithubToken"),
+  setGithubToken: (token) => ipcRenderer.invoke("credentials:setGithubToken", token),
+  getRegistryRepo: () => ipcRenderer.invoke("credentials:getRegistryRepo"),
+  setRegistryRepo: (repo) => ipcRenderer.invoke("credentials:setRegistryRepo", repo),
   isElectron: true,
   platform: process.platform,
 });

@@ -93,15 +93,56 @@ export interface SkillsLock {
   }
 }
 
-// CDN URLs
-export const BASE_URL = 'https://cdn.jsdelivr.net/gh/deepsuthar496/Brane@main'
-export const FALLBACK_URL = 'https://raw.githubusercontent.com/deepsuthar496/Brane/main'
+export function getRegistryUrls(repo: string) {
+  const baseUrl = `https://cdn.jsdelivr.net/gh/${repo}`;
+  const fallbackUrl = `https://raw.githubusercontent.com/${repo}/main`;
 
-export const REGISTRY_URLS = {
-  index: `${BASE_URL}/registry/index.json`,
-  skillCategory: (cat: string) => `${BASE_URL}/registry/skills/${cat}.json`,
-  skillMeta: (cat: string, id: string) => `${BASE_URL}/registry/skills/${cat}/${id}/meta.json`,
-  skillContent: (cat: string, id: string) => `${BASE_URL}/registry/skills/${cat}/${id}/SKILL.md`,
-  mcps: `${BASE_URL}/registry/mcps/all.json`,
-  prompts: `${BASE_URL}/registry/prompts/all.json`,
+  return {
+    index: { cdn: `${baseUrl}/registry/index.json`, fallback: `${fallbackUrl}/registry/index.json` },
+    skillCategory: (cat: string) => ({ 
+      cdn: `${baseUrl}/registry/skills/${cat}.json`, 
+      fallback: `${fallbackUrl}/registry/skills/${cat}.json` 
+    }),
+    skillMeta: (cat: string, id: string) => ({ 
+      cdn: `${baseUrl}/registry/skills/${cat}/${id}/meta.json`, 
+      fallback: `${fallbackUrl}/registry/skills/${cat}/${id}/meta.json` 
+    }),
+    skillContent: (cat: string, id: string) => ({ 
+      cdn: `${baseUrl}/registry/skills/${cat}/${id}/SKILL.md`, 
+      fallback: `${fallbackUrl}/registry/skills/${cat}/${id}/SKILL.md` 
+    }),
+    mcps: { cdn: `${baseUrl}/registry/mcps/all.json`, fallback: `${fallbackUrl}/registry/mcps/all.json` },
+    prompts: { cdn: `${baseUrl}/registry/prompts/all.json`, fallback: `${fallbackUrl}/registry/prompts/all.json` },
+  };
+}
+
+export async function fetchWithFallback<T>(
+  urlPair: { cdn: string, fallback: string },
+  token?: string | null
+): Promise<T> {
+  // 1. Try CDN first (no token needed, fastest)
+  try {
+    const response = await fetch(urlPair.cdn);
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (e) {
+    console.warn("CDN fetch failed, trying fallback...", e);
+  }
+
+  // 2. Try Fallback (GitHub Raw) - with token if provided
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `token ${token}`;
+  }
+
+  try {
+    const response = await fetch(urlPair.fallback, { headers });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch from Fallback. Status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (e) {
+    throw new Error(`Failed to fetch from both CDN and Fallback: ${e instanceof Error ? e.message : String(e)}`);
+  }
 }

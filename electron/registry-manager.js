@@ -2,14 +2,26 @@ const fs = require('fs').promises
 const path = require('path')
 const os = require('os')
 const https = require('https')
+const credentialsManager = require('./credentials-manager')
 
-const BASE_URL = 'https://cdn.jsdelivr.net/gh/deepsuthar496/Brane@main'
 const SKILLS_DIR = path.join(os.homedir(), 'brane', 'skills')
 const LOCK_PATH = path.join(__dirname, '..', 'skills-lock.json')
 
-async function fetchText(url) {
+async function fetchText(url, token) {
+  const options = {}
+  if (token) {
+    options.headers = {
+      'Authorization': `token ${token}`,
+      'User-Agent': 'Brane-Desktop-App'
+    }
+  }
+
   return new Promise((resolve, reject) => {
-    https.get(url, res => {
+    https.get(url, options, res => {
+      if (res.statusCode >= 400) {
+        reject(new Error(`Status: ${res.statusCode}`))
+        return
+      }
       let data = ''
       res.on('data', chunk => data += chunk)
       res.on('end', () => resolve(data))
@@ -35,9 +47,22 @@ async function writeLock(lock) {
 }
 
 async function installSkill(skill) {
-  // 1. Fetch the SKILL.md content
-  const url = `${BASE_URL}/${skill.path}`
-  const content = await fetchText(url)
+  const token = await credentialsManager.getGithubToken()
+  const repo = await credentialsManager.getRegistryRepo()
+  
+  const baseUrl = `https://cdn.jsdelivr.net/gh/${repo}`
+  const fallbackUrl = `https://raw.githubusercontent.com/${repo}/main`
+  
+  // 1. Fetch the SKILL.md content (try CDN then Fallback)
+  let content
+  try {
+    const url = `${baseUrl}/${skill.path}`
+    content = await fetchText(url)
+  } catch (e) {
+    console.warn("CDN fetch failed during install, trying fallback...", e)
+    const url = `${fallbackUrl}/${skill.path}`
+    content = await fetchText(url, token)
+  }
 
   // 2. Write to local skills directory
   const dest = path.join(SKILLS_DIR, skill.id)

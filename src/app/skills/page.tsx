@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Search, Grid, List, Package, Globe, Check, Download, Loader2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -10,11 +10,12 @@ import { Titlebar } from "@/components/layout/titlebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SkillCard } from "@/components/skills/skill-card";
 import { 
-  REGISTRY_URLS, 
+  getRegistryUrls, 
   RegistryIndex, 
   SkillEntry, 
   InstalledItem,
-  CategoryMeta
+  CategoryMeta,
+  fetchWithFallback
 } from "@/lib/registry";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,8 @@ const tabs = ["Installed", "Discover"];
 export default function SkillsPage() {
   const [activeTab, setActiveTab] = useState("Installed");
   const [searchQuery, setSearchQuery] = useState("");
+  const [githubToken, setGithubToken] = useState<string | null>(null);
+  const [registryRepo, setRegistryRepo] = useState<string>("deepsuthar496/Brane");
   
   // Registry state
   const [registryIndex, setRegistryIndex] = useState<RegistryIndex | null>(null);
@@ -33,6 +36,19 @@ export default function SkillsPage() {
   // Installed state
   const [installedSkills, setInstalledSkills] = useState<Record<string, InstalledItem>>({});
 
+  const registryUrls = useMemo(() => getRegistryUrls(registryRepo), [registryRepo]);
+
+  const fetchTokenAndRepo = useCallback(async () => {
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      const [token, repo] = await Promise.all([
+        window.electronAPI.getGithubToken(),
+        window.electronAPI.getRegistryRepo()
+      ]);
+      setGithubToken(token);
+      setRegistryRepo(repo);
+    }
+  }, []);
+
   const fetchInstalled = useCallback(async () => {
     if (typeof window !== 'undefined' && window.electronAPI) {
       const installed = await window.electronAPI.getInstalledSkills();
@@ -42,8 +58,7 @@ export default function SkillsPage() {
 
   const fetchRegistryIndex = useCallback(async () => {
     try {
-      const response = await fetch(REGISTRY_URLS.index);
-      const data: RegistryIndex = await response.json();
+      const data = await fetchWithFallback<RegistryIndex>(registryUrls.index, githubToken);
       setRegistryIndex(data);
       if (data.categories.skills.length > 0 && !activeCategory) {
         setActiveCategory(data.categories.skills[0].id);
@@ -51,25 +66,33 @@ export default function SkillsPage() {
     } catch (error) {
       console.error("Failed to fetch registry index:", error);
     }
-  }, [activeCategory]);
+  }, [activeCategory, githubToken, registryUrls]);
 
   const fetchCategorySkills = useCallback(async (categoryId: string) => {
     setLoading(true);
     try {
-      const response = await fetch(REGISTRY_URLS.skillCategory(categoryId));
-      const data = await response.json();
+      const data = await fetchWithFallback<{ skills: SkillEntry[] }>(
+        registryUrls.skillCategory(categoryId), 
+        githubToken
+      );
       setCategorySkills(data.skills || []);
     } catch (error) {
       console.error(`Failed to fetch skills for category ${categoryId}:`, error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [githubToken, registryUrls]);
 
   useEffect(() => {
+    fetchTokenAndRepo();
     fetchInstalled();
-    fetchRegistryIndex();
-  }, [fetchInstalled, fetchRegistryIndex]);
+  }, [fetchTokenAndRepo, fetchInstalled]);
+
+  useEffect(() => {
+    if (registryUrls) {
+      fetchRegistryIndex();
+    }
+  }, [registryUrls, fetchRegistryIndex]);
 
   useEffect(() => {
     if (activeCategory && activeTab === "Discover") {
