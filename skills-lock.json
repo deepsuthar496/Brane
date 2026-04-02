@@ -9,7 +9,14 @@
   },
   "installed": {
     "skills": {},
-    "mcps": {},
+    "mcps": {
+      "supabase": {
+        "version": "1.0.0",
+        "installedAt": "2026-04-02T15:35:11.724Z",
+        "sourceCategory": "system",
+        "enabled": true
+      }
+    },
     "prompts": {}
   }
 }

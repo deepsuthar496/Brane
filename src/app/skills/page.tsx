@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Titlebar } from "@/components/layout/titlebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SkillCard } from "@/components/skills/skill-card";
+import { SkillDetail } from "@/components/skills/skill-detail";
 import { 
   getRegistryUrls, 
   RegistryIndex, 
@@ -18,6 +19,7 @@ import {
   fetchWithFallback
 } from "@/lib/registry";
 import { cn } from "@/lib/utils";
+import { Sheet } from "@/components/ui/sheet";
 
 const tabs = ["Installed", "Discover"];
 
@@ -32,6 +34,7 @@ export default function SkillsPage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [categorySkills, setCategorySkills] = useState<SkillEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState<SkillEntry | null>(null);
   
   // Installed state
   const [installedSkills, setInstalledSkills] = useState<Record<string, InstalledItem>>({});
@@ -210,7 +213,7 @@ export default function SkillsPage() {
               </aside>
             )}
 
-            <div className="flex-1 overflow-y-auto bg-surface-1/30">
+            <div className="flex-1 overflow-y-auto bg-background">
               {activeTab === "Installed" ? (
                 <div className="px-7 py-6">
                   <div className="flex items-center justify-between mb-6">
@@ -304,13 +307,13 @@ export default function SkillsPage() {
                       <p className="text-xs text-txt-3 mt-4">Loading skills...</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-0 border-t border-l border-white/5 bg-white/[0.02]">
                       {categorySkills.map((skill) => (
                         <SkillCard
                           key={skill.id}
                           skill={skill}
                           isInstalled={!!installedSkills[skill.id]}
-                          onInstall={handleInstall}
+                          onClick={setSelectedSkill}
                         />
                       ))}
                     </div>
@@ -321,6 +324,18 @@ export default function SkillsPage() {
           </div>
         </main>
       </div>
+
+      <Sheet open={!!selectedSkill} onOpenChange={(open) => !open && setSelectedSkill(null)}>
+        {selectedSkill && (
+          <SkillDetail 
+            skill={selectedSkill} 
+            isInstalled={!!installedSkills[selectedSkill.id]} 
+            onInstall={handleInstall}
+            onClose={() => setSelectedSkill(null)}
+            registryRepo={registryRepo}
+          />
+        )}
+      </Sheet>
     </div>
   );
 }

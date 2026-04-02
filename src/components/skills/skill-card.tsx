@@ -1,100 +1,52 @@
 "use client";
 
-import { useState } from "react";
-import { Download, Check, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Star, ArrowUpRight, Terminal } from "lucide-react";
 import { SkillEntry } from "@/lib/registry";
 import { cn } from "@/lib/utils";
 
 interface SkillCardProps {
   skill: SkillEntry;
   isInstalled: boolean;
-  onInstall?: (skill: SkillEntry) => Promise<void>;
+  onClick?: (skill: SkillEntry) => void;
 }
 
-export function SkillCard({ skill, isInstalled, onInstall }: SkillCardProps) {
-  const [installing, setInstalling] = useState(false);
-
-  const handleInstall = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isInstalled || installing || !onInstall) return;
-    
-    setInstalling(true);
-    try {
-      await onInstall(skill);
-    } finally {
-      setInstalling(false);
-    }
-  };
-
+export function SkillCard({ skill, isInstalled, onClick }: SkillCardProps) {
   return (
-    <Card className="flex flex-col h-full hover:border-primary/50 transition-colors group">
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start gap-2">
-          <div className="size-10 rounded-lg bg-surface-2 border border-border flex items-center justify-center text-[20px] shrink-0">
-            {skill.icon}
+    <div 
+      className="group relative flex flex-col p-6 bg-background hover:bg-surface-2 transition-all cursor-pointer border-r border-b border-white/5"
+      onClick={() => onClick?.(skill)}
+    >
+      {/* Header: Icon + Name + Arrow */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="size-8 rounded-lg bg-surface-3 border border-border/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200 text-primary">
+            <Terminal className="size-4" />
           </div>
-          {isInstalled && (
-            <Badge variant="secondary" className="bg-green-500/10 text-green-500 border-green-500/20 gap-1 px-1.5 py-0">
-              <Check className="size-3" />
-              Installed
-            </Badge>
-          )}
+          <h3 className="text-[16px] font-semibold text-foreground tracking-tight truncate leading-none">
+            {skill.name}
+          </h3>
         </div>
-        <div className="mt-3">
-          <CardTitle className="text-[15px] font-semibold leading-tight">{skill.name}</CardTitle>
-          <div className="flex items-center gap-1.5 mt-1">
-            <span className="text-[11px] text-txt-3 font-medium">v{skill.version}</span>
-            <span className="text-[11px] text-txt-4">•</span>
-            <span className="text-[11px] text-txt-3 font-medium">{skill.author}</span>
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent className="pb-4 flex-1">
-        <CardDescription className="text-[13px] leading-relaxed line-clamp-2 min-h-[40px]">
-          {skill.description}
-        </CardDescription>
-        <div className="flex flex-wrap gap-1.5 mt-3">
-          {skill.tags.map(tag => (
-            <span key={tag} className="px-1.5 py-0.5 rounded bg-surface-2 border border-border text-[10px] text-txt-3">
-              {tag}
-            </span>
-          ))}
-        </div>
-      </CardContent>
+        <ArrowUpRight className="size-4 text-txt-4 group-hover:text-primary transition-colors shrink-0" />
+      </div>
 
-      <CardFooter className="pt-0">
-        <Button 
-          variant={isInstalled ? "outline" : "default"} 
-          size="sm" 
-          className={cn(
-            "w-full h-8 text-xs font-medium gap-1.5 transition-all",
-            isInstalled && "bg-transparent text-foreground/50 hover:bg-transparent cursor-default border-border"
-          )}
-          onClick={handleInstall}
-          disabled={isInstalled || installing}
-        >
-          {installing ? (
-            <>
-              <Loader2 className="size-3.5 animate-spin" />
-              Installing...
-            </>
-          ) : isInstalled ? (
-            <>
-              <Check className="size-3.5" />
-              Installed
-            </>
-          ) : (
-            <>
-              <Download className="size-3.5" />
-              Install Skill
-            </>
-          )}
-        </Button>
-      </CardFooter>
-    </Card>
+      {/* Description */}
+      <p className="text-[13px] text-txt-3 leading-relaxed line-clamp-2 mb-6 min-h-[40px]">
+        {skill.description}
+      </p>
+
+      {/* Footer: Category & Stats */}
+      <div className="mt-auto flex items-center justify-between">
+        <div className="px-2 py-0.5 rounded bg-surface-3 border border-border/60 text-[10px] text-txt-3 font-bold uppercase tracking-widest">
+          {skill.tags[0] || "General"}
+        </div>
+        <div className="flex items-center gap-2 text-txt-4">
+          <Star className="size-3.5 fill-current opacity-50" />
+          <span className="text-[12px] font-medium font-mono">330k</span>
+        </div>
+      </div>
+
+      {/* Top selection line for active feel */}
+      <div className="absolute top-0 left-0 w-full h-[2px] bg-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
+    </div>
   );
 }

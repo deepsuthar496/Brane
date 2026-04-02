@@ -59,6 +59,10 @@ This document tracks the implementation status of all major features within Bran
   - [ ] Track config changes, installations, and removals
 - [ ] **Log Viewer**
   - [ ] Searchable, filtered logs across all managed agents
+- [ ] **Usage Analytics (Future)**
+  - [ ] Track skill usage frequency (how many times a skill is used by users)
+  - [ ] Display popularity metrics in the Skills Marketplace
+  - [ ] Author-level analytics dashboard
 
 ---
 
