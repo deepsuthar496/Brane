@@ -49,6 +49,9 @@ This document tracks the implementation status of all major features within Bran
 ## 5. Agents & CLIs
 - [x] **Discovery**
   - [x] Local CLI discovery logic (Gemini, Claude, etc.)
+- [ ] **Agent Store**
+  - [ ] Play Store-like interface to discover and install CLIs/agents
+  - [ ] OS-specific installer detection (Future: Only show Windows installers on Windows, etc.)
 - [ ] **Runtime Management**
   - [ ] Start/Stop/Restart agents from UI
   - [ ] Real-time process health monitoring

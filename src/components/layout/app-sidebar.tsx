@@ -9,6 +9,7 @@ import {
   Settings,
   FileText,
   Activity,
+  ShoppingBag
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { agents } from "@/lib/data";
@@ -16,6 +17,7 @@ import { AgentIcon } from "@/components/agents/agent-icon";
 
 const mainNav = [
   { label: "Agents", icon: Monitor, href: "/", badge: "6" },
+  { label: "Agent Store", icon: ShoppingBag, href: "/store" },
   { label: "MCP Servers", icon: Link2, href: "/mcps", badge: "8" },
   { label: "Skills", icon: Star, href: "/skills", badge: "12" },
   { label: "Credentials", icon: Lock, href: "/credentials", hasNotif: true },
