@@ -179,7 +179,7 @@ export default function MCPPage() {
     // Clone and prepare MCP with credentials
     const preparedMcp = { ...mcpToInstall };
     
-    // Replace placeholders in args
+    // Replace placeholders in args and filter out empty optional flags
     if (preparedMcp.args) {
       preparedMcp.args = preparedMcp.args.map(arg => {
         let newArg = arg;
@@ -187,6 +187,12 @@ export default function MCPPage() {
           newArg = newArg.replace(`{${key}}`, value);
         });
         return newArg;
+      }).filter(arg => {
+        // Remove args that still have unresolved placeholders (optional ones not filled)
+        // or flags that ended up with no value (e.g. "--project-ref=")
+        const hasPlaceholder = /\{.+\}/.test(arg);
+        const isEmptyFlag = arg.includes('=') && arg.split('=')[1] === '';
+        return !hasPlaceholder && !isEmptyFlag;
       });
     }
 

@@ -43,11 +43,25 @@ async function fetchFromUrl(url, token) {
 }
 
 /**
- * Public IPC: Fetches registry data with CDN-to-Fallback logic
+ * Public IPC: Fetches registry data with Local-to-CDN-to-Fallback logic
  */
 async function fetchRegistryData(urlPair) {
   const token = await credentialsManager.getGithubToken()
   
+  // 0. Try local first (useful for development)
+  try {
+    const registryMatch = urlPair.cdn.match(/\/registry\/(.+)$/)
+    if (registryMatch) {
+      const relativePath = registryMatch[1]
+      const localPath = path.join(__dirname, '..', 'registry', relativePath)
+      const data = await fs.readFile(localPath, 'utf-8')
+      console.log(`[Registry] Loading local file: ${localPath}`)
+      return JSON.parse(data)
+    }
+  } catch (e) {
+    // Local file not found or error, continue to remote
+  }
+
   // 1. Try CDN first
   try {
     const data = await fetchFromUrl(urlPair.cdn)
@@ -92,13 +106,22 @@ async function installSkill(skill) {
   
   // 1. Fetch the SKILL.md content
   let content
+
+  // Try local first
   try {
-    const url = `${baseUrl}/${skill.path}`
-    content = await fetchFromUrl(url)
+    const localPath = path.join(__dirname, '..', skill.path)
+    content = await fs.readFile(localPath, 'utf-8')
+    console.log(`[Registry] Installing skill from local: ${localPath}`)
   } catch (e) {
-    console.warn("CDN fetch failed during install, trying fallback...", e.message)
-    const url = `${fallbackUrl}/${skill.path}`
-    content = await fetchFromUrl(url, token)
+    // Local file not found, try remote
+    try {
+      const url = `${baseUrl}/${skill.path}`
+      content = await fetchFromUrl(url)
+    } catch (e) {
+      console.warn("CDN fetch failed during install, trying fallback...", e.message)
+      const url = `${fallbackUrl}/${skill.path}`
+      content = await fetchFromUrl(url, token)
+    }
   }
 
   // 2. Write to local skills directory

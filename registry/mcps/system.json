@@ -30,7 +30,7 @@
       "description": "Perform database operations, manage projects, and run SQL queries.",
       "command": "npx",
       "args": ["-y", "@supabase/mcp-server-supabase@latest", "--project-ref={PROJECT_REF}"],
-      "requiredCredentials": ["SUPABASE_ACCESS_TOKEN", "PROJECT_REF"],
+      "requiredCredentials": ["SUPABASE_ACCESS_TOKEN"],
       "configPath": "registry/mcps/supabase/config.json"
     }
   ]
