@@ -18,6 +18,15 @@ import {
 import { McpCard } from "@/components/mcps/mcp-card";
 import { cn } from "@/lib/utils";
 
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from "@/components/ui/dialog";
+
 const tabs = ["Connected", "Discover"];
 
 export default function MCPPage() {
@@ -35,6 +44,11 @@ export default function MCPPage() {
   const [categoryMcps, setCategoryMcps] = useState<McpEntry[]>([]);
   const [loading, setLoading] = useState(false);
   
+  // Credential Dialog state
+  const [isCredDialogOpen, setIsCredDialogOpen] = useState(false);
+  const [mcpToInstall, setMcpToInstall] = useState<McpEntry | null>(null);
+  const [credValues, setCredValues] = useState<Record<string, string>>({});
+
   // Installed state
   const [installedMcps, setInstalledMcps] = useState<Record<string, InstalledItem>>({});
 
@@ -144,11 +158,50 @@ export default function MCPPage() {
   };
 
   const handleInstallRegistry = async (mcp: McpEntry) => {
+    if (mcp.requiredCredentials && mcp.requiredCredentials.length > 0) {
+      setMcpToInstall(mcp);
+      setCredValues({});
+      setIsCredDialogOpen(true);
+      return;
+    }
+
     if (window.electronAPI) {
       const result = await window.electronAPI.installMcp(mcp);
       if (result.success) {
         await loadServers();
       }
+    }
+  };
+
+  const handleCredSubmit = async () => {
+    if (!mcpToInstall || !window.electronAPI) return;
+
+    // Clone and prepare MCP with credentials
+    const preparedMcp = { ...mcpToInstall };
+    
+    // Replace placeholders in args
+    if (preparedMcp.args) {
+      preparedMcp.args = preparedMcp.args.map(arg => {
+        let newArg = arg;
+        Object.entries(credValues).forEach(([key, value]) => {
+          newArg = newArg.replace(`{${key}}`, value);
+        });
+        return newArg;
+      });
+    }
+
+    // Add credentials to env
+    preparedMcp.env = preparedMcp.env || {};
+    Object.entries(credValues).forEach(([key, value]) => {
+      preparedMcp.env![key] = value;
+    });
+
+    const result = await window.electronAPI.installMcp(preparedMcp);
+    if (result.success) {
+      await loadServers();
+      setIsCredDialogOpen(false);
+      setMcpToInstall(null);
+      setCredValues({});
     }
   };
 
@@ -322,6 +375,37 @@ export default function MCPPage() {
           </div>
         </main>
       </div>
+
+      <Dialog open={isCredDialogOpen} onOpenChange={setIsCredDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Credentials Required</DialogTitle>
+            <DialogDescription>
+              The {mcpToInstall?.name} MCP server requires additional information to connect.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {mcpToInstall?.requiredCredentials?.map((cred) => (
+              <div key={cred} className="space-y-2">
+                <label className="text-xs font-medium text-txt-3 uppercase tracking-wider">
+                  {cred.replace(/_/g, " ")}
+                </label>
+                <Input
+                  type={cred.includes("TOKEN") || cred.includes("KEY") || cred.includes("SECRET") ? "password" : "text"}
+                  placeholder={`Enter ${cred.replace(/_/g, " ").toLowerCase()}...`}
+                  value={credValues[cred] || ""}
+                  onChange={(e) => setCredValues(prev => ({ ...prev, [cred]: e.target.value }))}
+                  className="bg-surface-2"
+                />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsCredDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleCredSubmit}>Confirm & Install</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

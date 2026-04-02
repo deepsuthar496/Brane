@@ -7,7 +7,7 @@
       { "id": "creative", "label": "Creative", "icon": "🎨", "count": 2 }
     ],
     "mcps": [
-      { "id": "system", "label": "System", "count": 2 }
+      { "id": "system", "label": "System", "count": 3 }
     ],
     "prompts": []
   },
