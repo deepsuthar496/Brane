@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   ArrowLeft, 
   Search, 
@@ -40,26 +40,30 @@ const storeAgents = [
       {
         id: "macos-linux",
         os: "MacOS / Linux",
-        icon: "ph:terminal-fill", // Generic terminal icon for MacOS/Linux
-        command: "curl -fsSL https://claude.ai/install.sh | bash"
-      },
-      {
-        id: "homebrew",
-        os: "Homebrew",
-        icon: "devicon:homebrew",
-        command: "brew install --cask claude-code"
+        icon: "ph:terminal-fill", 
+        command: "curl -fsSL https://claude.ai/install.sh | bash",
+        platformMatch: ["mac", "linux"]
       },
       {
         id: "windows",
         os: "Windows",
         icon: "material-symbols:window",
-        command: "irm https://claude.ai/install.ps1 | iex"
+        command: "irm https://claude.ai/install.ps1 | iex",
+        platformMatch: ["win"]
+      },
+      {
+        id: "homebrew",
+        os: "Homebrew",
+        icon: "devicon:homebrew",
+        command: "brew install --cask claude-code",
+        platformMatch: ["mac"] // Homebrew primarily macOS in this context
       },
       {
         id: "npm",
         os: "NPM",
         icon: "logos:npm-icon",
-        command: "npm install -g @anthropic-ai/claude-code"
+        command: "npm install -g @anthropic-ai/claude-code",
+        platformMatch: ["any"]
       }
     ]
   }
@@ -68,8 +72,34 @@ const storeAgents = [
 export default function StorePage() {
   const [selectedAgent, setSelectedAgent] = useState<typeof storeAgents[0] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedInstallId, setSelectedInstallId] = useState("macos-linux");
+  const [selectedInstallId, setSelectedInstallId] = useState("");
   const [copied, setCopied] = useState(false);
+  const [userPlatform, setUserPlatform] = useState<string>("unknown");
+
+  useEffect(() => {
+    // Detect OS
+    if (typeof window !== "undefined") {
+      const ua = window.navigator.userAgent.toLowerCase();
+      if (ua.includes("win")) setUserPlatform("win");
+      else if (ua.includes("mac")) setUserPlatform("mac");
+      else if (ua.includes("linux")) setUserPlatform("linux");
+      else setUserPlatform("any");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedAgent && userPlatform !== "unknown") {
+      // Find best default installer for current OS
+      const bestMatch = selectedAgent.installOptions.find(opt => 
+        opt.platformMatch.includes(userPlatform) || opt.platformMatch.includes("any")
+      );
+      if (bestMatch) {
+        setSelectedInstallId(bestMatch.id);
+      } else {
+        setSelectedInstallId(selectedAgent.installOptions[0].id);
+      }
+    }
+  }, [selectedAgent, userPlatform]);
 
   const filteredAgents = storeAgents.filter(a => 
     a.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -95,10 +125,11 @@ export default function StorePage() {
             subtitle="Discover and install powerful AI CLIs and coding agents"
           />
 
-          <div className="flex-1 overflow-y-auto bg-background p-8">
+          {/* Reduced horizontal padding from p-8 to px-8 py-6, removed max-w constraints */}
+          <div className="flex-1 overflow-y-auto bg-background px-8 py-6">
             {!selectedAgent ? (
               // --- LIST VIEW ---
-              <div className="max-w-6xl mx-auto space-y-8">
+              <div className="w-full space-y-8">
                 <div className="flex items-center justify-between">
                   <h2 className="text-[20px] font-bold text-foreground tracking-tight">Featured Agents</h2>
                   <div className="relative w-64">
@@ -112,7 +143,8 @@ export default function StorePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {/* Adjusted grid to span full width nicely */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
                   {filteredAgents.map((agent) => (
                     <div 
                       key={agent.id}
@@ -160,7 +192,7 @@ export default function StorePage() {
               </div>
             ) : (
               // --- DETAIL VIEW ---
-              <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-300">
+              <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-300">
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -210,7 +242,7 @@ export default function StorePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 xl:gap-20">
                   {/* Left Column: Description & Info */}
                   <div className="lg:col-span-2 space-y-10">
                     <section>
@@ -220,7 +252,7 @@ export default function StorePage() {
                       </p>
                     </section>
 
-                    <section className="bg-surface-1/50 rounded-3xl p-6 border border-border/40">
+                    <section className="bg-surface-1/50 rounded-3xl p-6 border border-border/40 max-w-2xl">
                       <h3 className="text-[14px] font-bold text-txt-4 uppercase tracking-widest mb-4">Information</h3>
                       <div className="grid grid-cols-2 gap-y-4">
                         <div>
@@ -253,29 +285,44 @@ export default function StorePage() {
 
                       {/* OS Selection Tabs */}
                       <div className="flex flex-col gap-2 mb-6">
-                        {selectedAgent.installOptions.map((opt) => (
-                          <button
-                            key={opt.id}
-                            onClick={() => setSelectedInstallId(opt.id)}
-                            className={cn(
-                              "flex items-center gap-3 px-4 py-3 rounded-xl transition-all border text-left",
-                              selectedInstallId === opt.id
-                                ? "bg-primary/10 border-primary/30 text-foreground"
-                                : "bg-background border-border/40 text-txt-3 hover:bg-surface-2 hover:text-foreground hover:border-border"
-                            )}
-                          >
-                            <Icon icon={opt.icon} className={cn("size-5 shrink-0", selectedInstallId === opt.id ? "text-primary" : "")} />
-                            <span className="text-[14px] font-semibold flex-1">{opt.os}</span>
-                            {selectedInstallId === opt.id && (
-                              <Check className="size-4 text-primary shrink-0" />
-                            )}
-                          </button>
-                        ))}
+                        {selectedAgent.installOptions.map((opt) => {
+                          const isRecommended = opt.platformMatch.includes(userPlatform) || opt.platformMatch.includes("any");
+                          
+                          return (
+                            <button
+                              key={opt.id}
+                              onClick={() => setSelectedInstallId(opt.id)}
+                              className={cn(
+                                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all border text-left",
+                                selectedInstallId === opt.id
+                                  ? "bg-primary/10 border-primary/30 text-foreground"
+                                  : isRecommended 
+                                    ? "bg-background border-border/40 text-txt-3 hover:bg-surface-2 hover:text-foreground hover:border-border"
+                                    : "bg-background/50 border-transparent text-txt-4 opacity-50 hover:opacity-100 hover:bg-surface-2 transition-opacity"
+                              )}
+                            >
+                              <Icon icon={opt.icon} className={cn("size-5 shrink-0", selectedInstallId === opt.id ? "text-primary" : "")} />
+                              <div className="flex-1 flex flex-col">
+                                <span className="text-[14px] font-semibold">{opt.os}</span>
+                              </div>
+                              {selectedInstallId === opt.id && (
+                                <Check className="size-4 text-primary shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
 
                       {/* Command Display */}
                       <div className="space-y-3">
-                        <span className="text-[12px] font-medium text-txt-4 uppercase tracking-wider ml-1">Run Command</span>
+                        <div className="flex items-center justify-between ml-1">
+                          <span className="text-[12px] font-medium text-txt-4 uppercase tracking-wider">Run Command</span>
+                          {selectedInstallOption && !selectedInstallOption.platformMatch.includes(userPlatform) && !selectedInstallOption.platformMatch.includes("any") && userPlatform !== "unknown" && (
+                            <span className="text-[10px] text-agent-red bg-agent-red-dim px-2 py-0.5 rounded uppercase font-bold tracking-widest">
+                              May not run on your OS
+                            </span>
+                          )}
+                        </div>
                         <div className="relative group">
                           <div className="w-full bg-background border border-border/60 rounded-xl px-4 py-3.5 text-[13px] font-mono text-txt-2 text-left shadow-inner break-all pr-12">
                             {selectedInstallOption?.command}
