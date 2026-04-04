@@ -1,8 +1,9 @@
 "use client";
 
-import { Search, HelpCircle, Plus, Minus, Square, X } from "lucide-react";
+import { HelpCircle, Plus, Minus, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
+import { GlobalCommand } from "./global-command";
 
 export function Titlebar() {
   const [isElectron, setIsElectron] = useState(false);
@@ -28,20 +29,7 @@ export function Titlebar() {
       </div>
 
       {/* Center: global search */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 titlebar-no-drag">
-        <div
-          role="search"
-          tabIndex={0}
-          aria-label="Search agents, MCPs, configs…"
-          className="w-[180px] h-6 bg-surface-3/50 border border-border/40 rounded flex items-center gap-2 px-2 cursor-text hover:border-primary/30 hover:bg-surface-3 transition-all"
-        >
-          <Search className="size-2.5 text-txt-3 shrink-0" />
-          <span className="text-txt-3 text-[10px] flex-1 font-medium">Search…</span>
-          <kbd className="font-mono text-[9px] text-txt-3 bg-background border border-border/60 rounded px-1 py-0 shadow-sm">
-            ⌘ K
-          </kbd>
-        </div>
-      </div>
+      <GlobalCommand />
 
       {/* Right: actions + window controls */}
       <div className="flex items-center h-full titlebar-no-drag">

@@ -1,29 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Monitor,
-  Link2,
-  Star,
-  Lock,
-  Settings,
-  FileText,
-  Activity,
-  ShoppingBag
-} from "lucide-react";
+import { mainNav, workspaceNav } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 import { agents } from "@/lib/data";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { SettingsModal } from "@/components/settings/settings-modal";
-
-const mainNav = [
-  { label: "Agents", icon: Monitor, href: "/", badge: "6" },
-  { label: "Agent Store", icon: ShoppingBag, href: "/store" },
-  { label: "MCP Servers", icon: Link2, href: "/mcps", badge: "8" },
-  { label: "Skills", icon: Star, href: "/skills", badge: "12" },
-  { label: "Credentials", icon: Lock, href: "/credentials", hasNotif: true },
-];
+import { Settings } from "lucide-react";
 
 const quickAccess = agents.slice(0, 4).map((a) => ({
   label: a.name,
@@ -31,15 +15,16 @@ const quickAccess = agents.slice(0, 4).map((a) => ({
   online: a.status === "running",
 }));
 
-const workspaceNav = [
-  { label: "Logs", icon: FileText, href: "/logs" },
-  { label: "Activity", icon: Activity, href: "/activity" },
-];
-
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenSettings = () => setIsSettingsOpen(true);
+    window.addEventListener("open-settings", handleOpenSettings);
+    return () => window.removeEventListener("open-settings", handleOpenSettings);
+  }, []);
 
   return (
     <>
@@ -53,11 +38,11 @@ export function AppSidebar() {
             const isActive =
               item.href === "/"
                 ? pathname === "/"
-                : pathname.startsWith(item.href);
+                : pathname.startsWith(item.href || "");
             return (
               <button
                 key={item.href}
-                onClick={() => router.push(item.href)}
+                onClick={() => router.push(item.href || "")}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "flex items-center gap-[9px] px-2 py-1.5 rounded-md cursor-pointer text-[13px] font-[450] w-full text-left transition-colors",
@@ -122,11 +107,11 @@ export function AppSidebar() {
             Workspace
           </div>
           {workspaceNav.map((item) => {
-            const isActive = pathname.startsWith(item.href);
+            const isActive = pathname.startsWith(item.href || "");
             return (
               <button
                 key={item.href}
-                onClick={() => router.push(item.href)}
+                onClick={() => router.push(item.href || "")}
                 className={cn(
                   "flex items-center gap-[9px] px-2 py-1.5 rounded-md cursor-pointer text-[13px] font-[450] w-full text-left transition-colors",
                   isActive

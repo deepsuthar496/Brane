@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import type { Agent } from "@/lib/data";
 import { AgentIcon } from "./agent-icon";
 import { Terminal } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AgentSessions } from "./agent-sessions";
 
 const tagStyles: Record<string, string> = {
   mcp: "bg-agent-purple-dim text-agent-purple border-transparent",
@@ -47,7 +49,7 @@ export function AgentDetailView({ agent }: AgentDetailViewProps) {
   return (
     <div className="flex-1 flex flex-col p-8 bg-card rounded-xl border border-border/50 shadow-sm relative overflow-hidden">
       {/* Top Header */}
-      <div className="flex items-start gap-4 mb-8">
+      <div className="flex items-start gap-4 mb-8 shrink-0">
         <div className="size-14 rounded-xl border border-border/50 bg-surface-3 flex items-center justify-center text-2xl shrink-0 shadow-sm">
           <AgentIcon icon={agent.icon} className="size-8" />
         </div>
@@ -69,54 +71,75 @@ export function AgentDetailView({ agent }: AgentDetailViewProps) {
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3 mb-8">
-        {[
-          { val: agent.mcps, label: "MCP Servers Configured" },
-          { val: agent.skills, label: "Active Skills" },
-          { val: agent.flags, label: "CLI Flags Set" },
-        ].map((stat) => (
-          <div key={stat.label} className="bg-surface-2 rounded-lg p-4 border border-border/40">
-            <div className="text-2xl font-semibold text-foreground tabular-nums mb-1">
-              {stat.val}
-            </div>
-            <div className="text-[11px] text-txt-3 font-medium uppercase tracking-wider">{stat.label}</div>
+      <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="bg-transparent border-b border-border/60 w-full justify-start rounded-none h-auto p-0 gap-8 mb-6 shrink-0">
+          <TabsTrigger 
+            value="overview" 
+            className="rounded-none border-b-2 border-transparent data-active:border-primary data-active:bg-transparent px-0 pb-3 text-[13px] font-bold uppercase tracking-widest text-txt-4 data-active:text-primary transition-colors"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="sessions" 
+            className="rounded-none border-b-2 border-transparent data-active:border-primary data-active:bg-transparent px-0 pb-3 text-[13px] font-bold uppercase tracking-widest text-txt-4 data-active:text-primary transition-colors"
+          >
+            Sessions
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="flex-1 overflow-y-auto focus-visible:ring-0 pr-2">
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3 mb-8">
+            {[
+              { val: agent.mcps, label: "MCP Servers Configured" },
+              { val: agent.skills, label: "Active Skills" },
+              { val: agent.flags, label: "CLI Flags Set" },
+            ].map((stat) => (
+              <div key={stat.label} className="bg-surface-2 rounded-lg p-4 border border-border/40">
+                <div className="text-2xl font-semibold text-foreground tabular-nums mb-1">
+                  {stat.val}
+                </div>
+                <div className="text-[11px] text-txt-3 font-medium uppercase tracking-wider">{stat.label}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Tags details */}
-      <div className="mb-8">
-        <h3 className="text-[11px] font-semibold text-txt-3 uppercase tracking-wider mb-3">
-          Configuration Tags
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {!agent.discovered && (
-             <span className={cn("text-[11.5px] font-medium px-2.5 py-1 rounded-md border", tagStyles.error)}>
-                System: CLI not found in PATH
-             </span>
-          )}
-          {agent.tags.map((tag) => (
-            <span
-              key={tag.label}
-              className={cn(
-                "text-[11.5px] font-medium px-2.5 py-1 rounded-md border",
-                tagStyles[tag.type]
+          {/* Tags details */}
+          <div>
+            <h3 className="text-[11px] font-semibold text-txt-3 uppercase tracking-wider mb-3">
+              Configuration Tags
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {!agent.discovered && (
+                 <span className={cn("text-[11.5px] font-medium px-2.5 py-1 rounded-md border", tagStyles.error)}>
+                    System: CLI not found in PATH
+                 </span>
               )}
-            >
-              {tag.label}
-            </span>
-          ))}
-          {agent.tags.length === 0 && agent.discovered && (
-            <span className="text-xs text-txt-3 italic">No tags associated.</span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex-1" />
+              {agent.tags.map((tag) => (
+                <span
+                  key={tag.label}
+                  className={cn(
+                    "text-[11.5px] font-medium px-2.5 py-1 rounded-md border",
+                    tagStyles[tag.type]
+                  )}
+                >
+                  {tag.label}
+                </span>
+              ))}
+              {agent.tags.length === 0 && agent.discovered && (
+                <span className="text-xs text-txt-3 italic">No tags associated.</span>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="sessions" className="flex-1 overflow-y-auto focus-visible:ring-0 pr-2 h-full">
+          <AgentSessions agentId={agent.id} />
+        </TabsContent>
+      </Tabs>
 
       {/* Footer Actions */}
-      <div className="flex items-center gap-3 pt-6 border-t border-border/50">
+      <div className="flex items-center gap-3 pt-6 border-t border-border/50 shrink-0 mt-6">
         <Button variant="outline" className="flex-1">
           Configure Agent
         </Button>

@@ -79,10 +79,9 @@ export function SkillDetail({ skill, isInstalled, onInstall, onClose, registryRe
       <ScrollArea className="flex-1">
         <div className="p-10 relative">
           
-          <SheetClose asChild>
-            <Button variant="ghost" size="icon-sm" className="absolute top-6 right-6 text-txt-4 hover:text-foreground hover:bg-surface-2 transition-colors">
-              <XIcon className="size-5" />
-            </Button>
+          <SheetClose className="absolute top-6 right-6 text-txt-4 hover:text-foreground hover:bg-surface-2 transition-colors rounded-sm opacity-70 ring-offset-background data-[state=open]:bg-secondary">
+            <XIcon className="size-5" />
+            <span className="sr-only">Close</span>
           </SheetClose>
 
           {/* Main Title Area */}

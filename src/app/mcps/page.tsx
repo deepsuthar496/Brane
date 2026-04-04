@@ -197,9 +197,9 @@ export default function MCPPage() {
     }
 
     // Add credentials to env
-    preparedMcp.env = preparedMcp.env || {};
+    (preparedMcp as any).env = (preparedMcp as any).env || {};
     Object.entries(credValues).forEach(([key, value]) => {
-      preparedMcp.env![key] = value;
+      (preparedMcp as any).env[key] = value;
     });
 
     const result = await window.electronAPI.installMcp(preparedMcp);
