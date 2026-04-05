@@ -96,22 +96,31 @@ export default function AgentsPage() {
             {/* Agent Selector Header */}
             <div className="p-3 border-b border-border/40">
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="w-full justify-between px-2 h-10 hover:bg-surface-3">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      {selectedAgent ? (
-                        <>
-                          <div className="size-6 rounded bg-surface-3 border border-border/50 flex items-center justify-center shrink-0">
-                            <AgentIcon icon={selectedAgent.icon} className="size-3.5" />
-                          </div>
-                          <span className="text-[13px] font-semibold truncate">{selectedAgent.name}</span>
-                        </>
-                      ) : (
-                        <span className="text-[13px] font-medium text-txt-3">Select Agent</span>
-                      )}
-                    </div>
-                    <MoreHorizontal className="size-4 text-txt-4 shrink-0" />
-                  </Button>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-between px-2 h-10 hover:bg-surface-3"
+                    />
+                  }
+                >
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    {selectedAgent ? (
+                      <>
+                        <div className="size-6 rounded bg-surface-3 border border-border/50 flex items-center justify-center shrink-0">
+                          <AgentIcon icon={selectedAgent.icon} className="size-3.5" />
+                        </div>
+                        <span className="text-[13px] font-semibold truncate">
+                          {selectedAgent.name}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-[13px] font-medium text-txt-3">
+                        Select Agent
+                      </span>
+                    )}
+                  </div>
+                  <MoreHorizontal className="size-4 text-txt-4 shrink-0" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-[236px]" align="start">
                   <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-txt-4 font-bold">My Agents</DropdownMenuLabel>
