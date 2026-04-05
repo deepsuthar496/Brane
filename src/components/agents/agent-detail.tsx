@@ -5,9 +5,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import type { Agent } from "@/lib/data";
 import { AgentIcon } from "./agent-icon";
-import { Terminal } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AgentSessions } from "./agent-sessions";
+import { Terminal, Settings2, Code, ShieldCheck } from "lucide-react";
 
 const tagStyles: Record<string, string> = {
   mcp: "bg-agent-purple-dim text-agent-purple border-transparent",
@@ -18,16 +16,19 @@ const tagStyles: Record<string, string> = {
 
 interface AgentDetailViewProps {
   agent: Agent | null;
+  onStartSession?: () => void;
 }
 
-export function AgentDetailView({ agent }: AgentDetailViewProps) {
+export function AgentDetailView({ agent, onStartSession }: AgentDetailViewProps) {
   if (!agent) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
-        <Terminal className="size-12 opacity-20 mb-4" />
-        <p className="text-sm font-medium">No agent selected</p>
-        <p className="text-xs text-txt-3 mt-1">
-          Select an agent from the explorer to view details.
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-muted-foreground bg-[#0a0a09] h-full">
+        <div className="size-16 rounded-full bg-surface-2 border border-border flex items-center justify-center mb-4">
+          <Terminal className="size-6 text-txt-3" />
+        </div>
+        <h2 className="text-lg font-semibold text-foreground">Welcome to Gemini CLI</h2>
+        <p className="text-sm text-txt-3 mt-2 max-w-md">
+          Select an agent from the dropdown menu to view configurations or start a new session.
         </p>
       </div>
     );
@@ -47,114 +48,112 @@ export function AgentDetailView({ agent }: AgentDetailViewProps) {
       : "error";
 
   return (
-    <div className="flex-1 flex flex-col p-8 bg-card rounded-xl border border-border/50 shadow-sm relative overflow-hidden">
-      {/* Top Header */}
-      <div className="flex items-start gap-4 mb-8 shrink-0">
-        <div className="size-14 rounded-xl border border-border/50 bg-surface-3 flex items-center justify-center text-2xl shrink-0 shadow-sm">
-          <AgentIcon icon={agent.icon} className="size-8" />
-        </div>
-        <div className="flex-1 min-w-0 pt-1">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-foreground tracking-tight">
-              {agent.name}
-            </h2>
-            <StatusBadge status={statusType} label={statusLabel} />
+    <div className="flex-1 flex flex-col p-8 overflow-y-auto">
+      <div className="max-w-4xl mx-auto w-full">
+        {/* Top Header */}
+        <div className="flex items-start gap-4 mb-10 pb-8 border-b border-border/40">
+          <div className="size-16 rounded-xl border border-border/50 bg-surface-3 flex items-center justify-center text-2xl shrink-0 shadow-sm">
+            <AgentIcon icon={agent.icon} className="size-8" />
           </div>
-          <p className="text-[13px] text-txt-3 font-mono mt-1.5">
-            {agent.version} <span className="text-border mx-2">•</span> {agent.provider}
-          </p>
-          {agent.fullPath && (
-            <p className="text-[11px] text-txt-3 font-mono mt-2 bg-surface-2 px-2 py-1 rounded border border-border/40 truncate" title={agent.fullPath}>
-              {agent.fullPath}
+          <div className="flex-1 min-w-0 pt-1">
+            <div className="flex items-center gap-3 mb-1">
+              <h2 className="text-2xl font-bold text-foreground tracking-tight">
+                {agent.name}
+              </h2>
+              <StatusBadge status={statusType} label={statusLabel} />
+            </div>
+            <p className="text-[13px] text-txt-3 font-mono mt-1.5 flex items-center gap-2">
+              <span className="bg-surface-2 px-1.5 py-0.5 rounded text-txt-2">{agent.version}</span>
+              <span className="text-border">•</span>
+              <span>{agent.provider}</span>
             </p>
-          )}
+            {agent.fullPath && (
+              <p className="text-[11px] text-txt-4 font-mono mt-3 truncate max-w-xl" title={agent.fullPath}>
+                {agent.fullPath}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2">
+              <Settings2 className="size-4" />
+              Configure
+            </Button>
+            <Button onClick={onStartSession} className="gap-2">
+              <Terminal className="size-4" />
+              Launch Agent
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <Tabs defaultValue="overview" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="bg-transparent border-b border-border/60 w-full justify-start rounded-none h-auto p-0 gap-8 mb-6 shrink-0">
-          <TabsTrigger 
-            value="overview" 
-            className="rounded-none border-b-2 border-transparent data-active:border-primary data-active:bg-transparent px-0 pb-3 text-[13px] font-bold uppercase tracking-widest text-txt-4 data-active:text-primary transition-colors"
-          >
-            Overview
-          </TabsTrigger>
-          <TabsTrigger 
-            value="sessions" 
-            className="rounded-none border-b-2 border-transparent data-active:border-primary data-active:bg-transparent px-0 pb-3 text-[13px] font-bold uppercase tracking-widest text-txt-4 data-active:text-primary transition-colors"
-          >
-            Sessions
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="overview" className="flex-1 overflow-y-auto focus-visible:ring-0 pr-2">
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3 mb-8">
+        {/* Two Column Layout for Config & Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          
+          <div className="md:col-span-2 space-y-8">
+            {/* System Status */}
+            <div>
+               <h3 className="text-[13px] font-semibold text-txt-2 uppercase tracking-wider mb-4 flex items-center gap-2">
+                 <ShieldCheck className="size-4 text-primary" /> Configuration Status
+               </h3>
+               <div className="bg-surface-2 rounded-xl p-5 border border-border/40 space-y-4">
+                 <div className="flex flex-wrap gap-2">
+                    {!agent.discovered && (
+                       <span className={cn("text-[11.5px] font-medium px-2.5 py-1 rounded-md border", tagStyles.error)}>
+                          System: CLI not found in PATH
+                       </span>
+                    )}
+                    {agent.tags.map((tag) => (
+                      <span
+                        key={tag.label}
+                        className={cn(
+                          "text-[11.5px] font-medium px-2.5 py-1 rounded-md border",
+                          tagStyles[tag.type]
+                        )}
+                      >
+                        {tag.label}
+                      </span>
+                    ))}
+                    {agent.tags.length === 0 && agent.discovered && (
+                      <span className="text-xs text-txt-3 italic">No tags associated. Default configuration applies.</span>
+                    )}
+                  </div>
+               </div>
+            </div>
+
+            {/* Quick Actions / Integration */}
+            <div>
+              <h3 className="text-[13px] font-semibold text-txt-2 uppercase tracking-wider mb-4 flex items-center gap-2">
+                 <Code className="size-4 text-agent-blue" /> Integration Commands
+               </h3>
+               <div className="space-y-2">
+                 <div className="bg-surface-2 border border-border/40 rounded-lg p-3 font-mono text-[12px] flex items-center justify-between group cursor-pointer hover:border-border transition-colors">
+                   <span className="text-txt-2">gemini-cli --help</span>
+                   <span className="text-[10px] text-txt-4 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Copy</span>
+                 </div>
+                 <div className="bg-surface-2 border border-border/40 rounded-lg p-3 font-mono text-[12px] flex items-center justify-between group cursor-pointer hover:border-border transition-colors">
+                   <span className="text-txt-2">gemini-cli start --verbose</span>
+                   <span className="text-[10px] text-txt-4 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Copy</span>
+                 </div>
+               </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-[13px] font-semibold text-txt-2 uppercase tracking-wider mb-4">Capacity</h3>
             {[
               { val: agent.mcps, label: "MCP Servers Configured" },
               { val: agent.skills, label: "Active Skills" },
               { val: agent.flags, label: "CLI Flags Set" },
             ].map((stat) => (
-              <div key={stat.label} className="bg-surface-2 rounded-lg p-4 border border-border/40">
-                <div className="text-2xl font-semibold text-foreground tabular-nums mb-1">
+              <div key={stat.label} className="bg-surface-2/50 rounded-xl p-5 border border-border/40 flex flex-col justify-center h-24">
+                <div className="text-3xl font-semibold text-foreground tabular-nums mb-1 leading-none">
                   {stat.val}
                 </div>
-                <div className="text-[11px] text-txt-3 font-medium uppercase tracking-wider">{stat.label}</div>
+                <div className="text-[10px] text-txt-4 font-bold uppercase tracking-wider mt-1">{stat.label}</div>
               </div>
             ))}
           </div>
 
-          {/* Tags details */}
-          <div>
-            <h3 className="text-[11px] font-semibold text-txt-3 uppercase tracking-wider mb-3">
-              Configuration Tags
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {!agent.discovered && (
-                 <span className={cn("text-[11.5px] font-medium px-2.5 py-1 rounded-md border", tagStyles.error)}>
-                    System: CLI not found in PATH
-                 </span>
-              )}
-              {agent.tags.map((tag) => (
-                <span
-                  key={tag.label}
-                  className={cn(
-                    "text-[11.5px] font-medium px-2.5 py-1 rounded-md border",
-                    tagStyles[tag.type]
-                  )}
-                >
-                  {tag.label}
-                </span>
-              ))}
-              {agent.tags.length === 0 && agent.discovered && (
-                <span className="text-xs text-txt-3 italic">No tags associated.</span>
-              )}
-            </div>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="sessions" className="flex-1 overflow-y-auto focus-visible:ring-0 pr-2 h-full">
-          <AgentSessions agentId={agent.id} />
-        </TabsContent>
-      </Tabs>
-
-      {/* Footer Actions */}
-      <div className="flex items-center gap-3 pt-6 border-t border-border/50 shrink-0 mt-6">
-        <Button variant="outline" className="flex-1">
-          Configure Agent
-        </Button>
-        <Button variant="outline" className="flex-1">
-          View Logs
-        </Button>
-        <Button
-          className={cn(
-            "flex-1",
-            agent.status === "error" && "opacity-50 cursor-not-allowed"
-          )}
-          disabled={agent.status === "error"}
-        >
-          Launch Terminal
-        </Button>
+        </div>
       </div>
     </div>
   );
