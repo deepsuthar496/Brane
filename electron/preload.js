@@ -4,6 +4,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   minimize: () => ipcRenderer.send("window-minimize"),
   maximize: () => ipcRenderer.send("window-maximize"),
   close: () => ipcRenderer.send("window-close"),
+  
+  // Logs
+  getLogs: () => ipcRenderer.invoke("get-logs"),
+  clearLogs: () => ipcRenderer.invoke("clear-logs"),
+  addLog: (level, source, message, details) => ipcRenderer.invoke("add-log", { level, source, message, details }),
+  
   discoverCLIs: () => ipcRenderer.invoke("discover-clis"),
   getMcpServers: () => ipcRenderer.invoke("get-mcp-servers"),
   addMcpServer: (id, config) => ipcRenderer.invoke("add-mcp-server", { id, config }),
@@ -21,6 +27,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setGithubToken: (token) => ipcRenderer.invoke("credentials:setGithubToken", token),
   getRegistryRepo: () => ipcRenderer.invoke("credentials:getRegistryRepo"),
   setRegistryRepo: (repo) => ipcRenderer.invoke("credentials:setRegistryRepo", repo),
+  installCLI: (payload) => ipcRenderer.invoke("install-cli", payload),
+  checkCLIInstalled: (command) => ipcRenderer.invoke("check-cli-installed", command),
+  onInstallProgress: (id, callback) => {
+    const channel = `install-progress:${id}`;
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
   isElectron: true,
   platform: process.platform,
 });

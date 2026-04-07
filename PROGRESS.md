@@ -58,10 +58,10 @@ This document tracks the implementation status of all major features within Bran
   - [ ] Log streaming/Terminal panel
 
 ## 6. Logs & Activity
-- [ ] **Event Timeline**
-  - [ ] Track config changes, installations, and removals
-- [ ] **Log Viewer**
-  - [ ] Searchable, filtered logs across all managed agents
+- [x] **Event Timeline**
+  - [x] Track config changes, installations, and removals
+- [x] **Log Viewer**
+  - [x] Searchable, filtered logs across all managed agents
 - [ ] **Usage Analytics (Future)**
   - [ ] Track skill usage frequency (how many times a skill is used by users)
   - [ ] Display popularity metrics in the Skills Marketplace

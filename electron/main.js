@@ -1,9 +1,11 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
-const { discoverCLIs } = require("./cli-discovery");
+const { discoverCLIs, findCommandPath } = require("./cli-discovery");
 const mcpManager = require("./mcp-manager");
 const registryManager = require("./registry-manager");
 const credentialsManager = require("./credentials-manager");
+const logsManager = require("./logs-manager");
+const { installCLI } = require("./execution-manager");
 
 const isDev = !app.isPackaged;
 
@@ -27,12 +29,33 @@ ipcMain.on("window-close", (event) => {
   if (win) win.close();
 });
 
+// Logs IPC handlers
+ipcMain.handle("get-logs", async () => {
+  return await logsManager.getLogs();
+});
+
+ipcMain.handle("clear-logs", async () => {
+  return await logsManager.clearLogs();
+});
+
+ipcMain.handle("add-log", async (event, { level, source, message, details }) => {
+  return await logsManager.addLog(level, source, message, details);
+});
+
 // CLI discovery IPC handler
 ipcMain.handle("discover-clis", async () => {
   return await discoverCLIs();
 });
 
-// MCP management IPC handlers
+ipcMain.handle("check-cli-installed", async (event, command) => {
+  const path = await findCommandPath(command);
+  return !!path;
+});
+
+// Execution IPC handlers
+ipcMain.handle("install-cli", async (event, payload) => {
+  return await installCLI(event, payload);
+});
 ipcMain.handle("get-mcp-servers", async () => {
   return await mcpManager.getMcpServers();
 });

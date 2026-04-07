@@ -148,4 +148,4 @@ async function discoverCLIs() {
   return discovered;
 }
 
-module.exports = { discoverCLIs };
+module.exports = { discoverCLIs, findCommandPath };

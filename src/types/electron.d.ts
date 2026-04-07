@@ -1,10 +1,25 @@
 import { Agent, MCPServer } from "@/lib/data";
 import { SkillEntry, McpEntry, InstalledItem } from "@/lib/registry";
 
+export interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: "info" | "warn" | "error" | "debug";
+  source: string;
+  message: string;
+  details?: string | null;
+}
+
 export interface IElectronAPI {
   minimize: () => void;
   maximize: () => void;
   close: () => void;
+  
+  // Logs
+  getLogs: () => Promise<LogEntry[]>;
+  clearLogs: () => Promise<boolean>;
+  addLog: (level: string, source: string, message: string, details?: string | null) => Promise<LogEntry>;
+
   discoverCLIs: () => Promise<Agent[]>;
   getMcpServers: () => Promise<MCPServer[]>;
   addMcpServer: (id: string, config: Partial<MCPServer>) => Promise<MCPServer>;
