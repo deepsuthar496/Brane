@@ -62,6 +62,7 @@
   --color-txt-1: var(--txt-1);
   --color-txt-2: var(--txt-2);
   --color-txt-3: var(--txt-3);
+  --color-txt-4: var(--txt-4);
 }
 
 :root {
@@ -116,6 +117,7 @@
   --txt-1: #e4e4e7;
   --txt-2: #a1a1aa;
   --txt-3: #71717a;
+  --txt-4: #52525b;
 
   color-scheme: dark;
 }
