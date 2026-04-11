@@ -1,51 +1,56 @@
 import { Agent, MCPServer } from "@/lib/data";
-import { SkillEntry, McpEntry, InstalledItem } from "@/lib/registry";
 
 export interface LogEntry {
-  id: string;
-  timestamp: string;
-  level: "info" | "warn" | "error" | "debug";
+  level: string;
   source: string;
   message: string;
-  details?: string | null;
+  details?: unknown;
 }
 
-export interface IElectronAPI {
+export interface ElectronAPI {
   minimize: () => void;
   maximize: () => void;
   close: () => void;
-  
+
   // Logs
   getLogs: () => Promise<LogEntry[]>;
-  clearLogs: () => Promise<boolean>;
-  addLog: (level: string, source: string, message: string, details?: string | null) => Promise<LogEntry>;
+  clearLogs: () => Promise<void>;
+  addLog: (level: string, source: string, message: string, details?: unknown) => Promise<void>;
 
   discoverCLIs: () => Promise<Agent[]>;
   getMcpServers: () => Promise<MCPServer[]>;
-  addMcpServer: (id: string, config: Partial<MCPServer>) => Promise<MCPServer>;
+  addMcpServer: (id: string, config: unknown) => Promise<boolean>;
   removeMcpServer: (id: string) => Promise<boolean>;
   toggleMcpServer: (id: string, enabled: boolean) => Promise<boolean>;
-  
-  // Registry methods
-  fetchRegistryData: <T>(urlPair: { cdn: string; fallback: string }) => Promise<T>;
-  installSkill: (skill: SkillEntry) => Promise<{ success: boolean }>;
-  uninstallSkill: (id: string) => Promise<{ success: boolean }>;
-  installMcp: (mcp: McpEntry) => Promise<{ success: boolean }>;
-  uninstallMcp: (id: string) => Promise<{ success: boolean }>;
-  getInstalledSkills: () => Promise<Record<string, InstalledItem>>;
-  getInstalledMcps: () => Promise<Record<string, InstalledItem>>;
-  toggleSkill: (id: string, enabled: boolean) => Promise<{ success: boolean }>;
+  fetchRegistryData: (urlPair: { skillsUrl: string; mcpsUrl: string }) => Promise<unknown>;
+  installSkill: (skill: unknown) => Promise<boolean>;
+  uninstallSkill: (id: string) => Promise<boolean>;
+  installMcp: (mcp: unknown) => Promise<boolean>;
+  uninstallMcp: (id: string) => Promise<boolean>;
+  getInstalledSkills: () => Promise<string[]>;
+  getInstalledMcps: () => Promise<string[]>;
+  toggleSkill: (id: string, enabled: boolean) => Promise<boolean>;
+  getAllCredentials: () => Promise<any[]>;
+  saveCredential: (key: string, value: string) => Promise<boolean>;
+  deleteCredential: (key: string) => Promise<boolean>;
   getGithubToken: () => Promise<string | null>;
   setGithubToken: (token: string) => Promise<boolean>;
   getRegistryRepo: () => Promise<string>;
   setRegistryRepo: (repo: string) => Promise<boolean>;
-
+  installCLI: (payload: { command: string; id: string }) => Promise<{ success: boolean; code?: number; error?: string }>;
+  checkCLIInstalled: (command: string) => Promise<boolean>;
+  startAgent: (payload: { id: string; command: string }) => Promise<{ success: boolean; error?: string }>;
+  stopAgent: (id: string) => Promise<{ success: boolean; error?: string }>;
+  getAgentStatus: (id: string) => Promise<{ status: "running" | "stopped" | "error"; startTime?: number }>;
+  onInstallProgress: (id: string, callback: (data: { type: string; data: string }) => void) => () => void;
+  onAgentLog: (id: string, callback: (data: { type: string; data: string }) => void) => () => void;
+  onAgentStatus: (id: string, callback: (data: { status: string; error?: string; code?: number }) => void) => () => void;
   isElectron: boolean;
   platform: string;
 }
 
 declare global {
   interface Window {
-    electronAPI: IElectronAPI;
+    electronAPI: ElectronAPI;
   }
 }

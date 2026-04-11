@@ -88,9 +88,17 @@ interface AgentDetailViewProps {
   agent: Agent | null;
   sessions?: Session[];
   onStartSession?: () => void;
+  onStopAgent?: () => void;
+  onRestartAgent?: () => void;
 }
 
-export function AgentDetailView({ agent, sessions = [], onStartSession }: AgentDetailViewProps) {
+export function AgentDetailView({ 
+  agent, 
+  sessions = [], 
+  onStartSession, 
+  onStopAgent, 
+  onRestartAgent 
+}: AgentDetailViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>("overview");
 
   if (!agent) {
@@ -151,10 +159,33 @@ export function AgentDetailView({ agent, sessions = [], onStartSession }: AgentD
               <Settings2 className="size-3.5" />
               Configure
             </Button>
-            <Button size="sm" onClick={onStartSession} className="gap-1.5 h-8 text-[12px]">
-              <Terminal className="size-3.5" />
-              Launch Agent
-            </Button>
+            {agent.status === "running" ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={onRestartAgent} 
+                  className="gap-1.5 h-8 text-[12px] border-agent-blue/50 text-agent-blue hover:bg-agent-blue/10"
+                >
+                  <Zap className="size-3.5" />
+                  Restart
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={onStopAgent} 
+                  className="gap-1.5 h-8 text-[12px] bg-agent-red hover:bg-agent-red/90"
+                >
+                  <XCircle className="size-3.5" />
+                  Stop Agent
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" onClick={onStartSession} className="gap-1.5 h-8 text-[12px]">
+                <Terminal className="size-3.5" />
+                Launch Agent
+              </Button>
+            )}
           </div>
         </div>
 

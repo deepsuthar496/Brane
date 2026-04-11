@@ -97,7 +97,7 @@ export const agents: Agent[] = [
   {
     id: "cursor",
     name: "Cursor",
-    icon: "🖱️",
+    icon: "lucide:mouse-pointer-2",
     version: "v0.50.2",
     provider: "@cursor",
     status: "stopped",
@@ -129,7 +129,7 @@ export const agents: Agent[] = [
   {
     id: "openclaw",
     name: "OpenClaw",
-    icon: "🦀",
+    icon: "lucide:terminal",
     version: "v0.1.8",
     provider: "community",
     status: "error",
@@ -142,30 +142,30 @@ export const agents: Agent[] = [
 ];
 
 export const mcpServers: MCPServer[] = [
-  { id: "fs", name: "Filesystem", icon: "📁", url: "npx @modelcontextprotocol/server-filesystem ~/projects", scope: "global", enabled: true, category: "System" },
-  { id: "github", name: "GitHub", icon: "🐙", url: "npx @modelcontextprotocol/server-github", scope: "claude · codex", enabled: true, category: "System" },
-  { id: "postgres", name: "PostgreSQL", icon: "🗃️", url: "npx @modelcontextprotocol/server-postgres postgresql://localhost/dev", scope: "cursor · claude", enabled: true, category: "System" },
-  { id: "gmail", name: "Gmail", icon: "📧", url: "https://gmail.mcp.claude.com/mcp", scope: "gemini · claude", enabled: true, category: "Google" },
-  { id: "gcal", name: "Google Calendar", icon: "📅", url: "https://gcal.mcp.claude.com/mcp", scope: "gemini", enabled: false, category: "Google" },
-  { id: "gdrive", name: "Google Drive", icon: "💾", url: "https://gdrive.mcp.google.com/mcp", scope: "gemini", enabled: true, category: "Google" },
-  { id: "brave", name: "Brave Search", icon: "🐦", url: "npx @modelcontextprotocol/server-brave-search", scope: "global", enabled: false, category: "Community" },
-  { id: "memory", name: "Memory", icon: "🧠", url: "npx @modelcontextprotocol/server-memory", scope: "claude", enabled: true, category: "Community" },
+  { id: "fs", name: "Filesystem", icon: "Folder", url: "npx @modelcontextprotocol/server-filesystem ~/projects", scope: "global", enabled: true, category: "System" },
+  { id: "github", name: "GitHub", icon: "Github", url: "npx @modelcontextprotocol/server-github", scope: "claude · codex", enabled: true, category: "System" },
+  { id: "postgres", name: "PostgreSQL", icon: "Database", url: "npx @modelcontextprotocol/server-postgres postgresql://localhost/dev", scope: "cursor · claude", enabled: true, category: "System" },
+  { id: "gmail", name: "Gmail", icon: "Mail", url: "https://gmail.mcp.claude.com/mcp", scope: "gemini · claude", enabled: true, category: "Google" },
+  { id: "gcal", name: "Google Calendar", icon: "Calendar", url: "https://gcal.mcp.claude.com/mcp", scope: "gemini", enabled: false, category: "Google" },
+  { id: "gdrive", name: "Google Drive", icon: "HardDrive", url: "https://gdrive.mcp.google.com/mcp", scope: "gemini", enabled: true, category: "Google" },
+  { id: "brave", name: "Brave Search", icon: "Search", url: "npx @modelcontextprotocol/server-brave-search", scope: "global", enabled: false, category: "Community" },
+  { id: "memory", name: "Memory", icon: "Brain", url: "npx @modelcontextprotocol/server-memory", scope: "claude", enabled: true, category: "Community" },
 ];
 
 export const skills: Skill[] = [
-  { id: "docx", name: "DOCX Generator", icon: "📄", path: "~/.agents/skills/docx/SKILL.md", description: "Word document creation", scope: "claude · gemini", enabled: true },
-  { id: "xlsx", name: "XLSX Builder", icon: "📊", path: "~/.agents/skills/xlsx/SKILL.md", description: "Spreadsheet generation", scope: "claude", enabled: true },
-  { id: "pdf", name: "PDF Toolkit", icon: "📑", path: "~/.agents/skills/pdf/SKILL.md", description: "PDF read & create", scope: "claude · codex", enabled: true },
-  { id: "ui-design", name: "Modern UI Design", icon: "🎨", path: "~/.agents/skills/modern-ui-design/SKILL.md", description: "Frontend excellence", scope: "claude", enabled: true },
-  { id: "file-reading", name: "File Reading", icon: "📖", path: "~/.agents/skills/file-reading/SKILL.md", description: "Smart file ingestion", scope: "claude · gemini", enabled: false },
-  { id: "product-knowledge", name: "Product Self-Knowledge", icon: "🔍", path: "~/.agents/skills/product-self-knowledge/SKILL.md", description: "API & product facts", scope: "claude", enabled: true },
+  { id: "docx", name: "DOCX Generator", icon: "FileText", path: "~/.agents/skills/docx/SKILL.md", description: "Word document creation", scope: "claude · gemini", enabled: true },
+  { id: "xlsx", name: "XLSX Builder", icon: "Table", path: "~/.agents/skills/xlsx/SKILL.md", description: "Spreadsheet generation", scope: "claude", enabled: true },
+  { id: "pdf", name: "PDF Toolkit", icon: "FileCode", path: "~/.agents/skills/pdf/SKILL.md", description: "PDF read & create", scope: "claude · codex", enabled: true },
+  { id: "ui-design", name: "Modern UI Design", icon: "Palette", path: "~/.agents/skills/modern-ui-design/SKILL.md", description: "Frontend excellence", scope: "claude", enabled: true },
+  { id: "file-reading", name: "File Reading", icon: "BookOpen", path: "~/.agents/skills/file-reading/SKILL.md", description: "Smart file ingestion", scope: "claude · gemini", enabled: false },
+  { id: "product-knowledge", name: "Product Self-Knowledge", icon: "Zap", path: "~/.agents/skills/product-self-knowledge/SKILL.md", description: "API & product facts", scope: "claude", enabled: true },
 ];
 
 export const credentials: Credential[] = [
-  { id: "anthropic", name: "ANTHROPIC_API_KEY", icon: "🤖", envVar: "ANTHROPIC_API_KEY", maskedKey: "sk-ant-api03-••••••••••••••••••••••XA", status: "valid", category: "Anthropic" },
-  { id: "gemini", name: "GEMINI_API_KEY", icon: "✨", envVar: "GEMINI_API_KEY", maskedKey: "AIzaSy••••••••••••••••••••••••••••pQ", status: "valid", category: "Google" },
-  { id: "openai", name: "OPENAI_API_KEY", icon: "📦", envVar: "OPENAI_API_KEY", maskedKey: "Not configured — required by Codex CLI & OpenClaw", status: "missing", category: "OpenAI" },
-  { id: "github", name: "GITHUB_TOKEN", icon: "🐙", envVar: "GITHUB_TOKEN", maskedKey: "ghp_••••••••••••••••••••••••••••••Kz", status: "valid", category: "Version Control" },
+  { id: "anthropic", name: "Anthropic", icon: "Cpu", envVar: "ANTHROPIC_API_KEY", maskedKey: "sk-ant-api03-••••••••••••••••••••••XA", status: "valid", category: "Anthropic" },
+  { id: "gemini", name: "Google Gemini", icon: "Sparkles", envVar: "GEMINI_API_KEY", maskedKey: "AIzaSy••••••••••••••••••••••••••••pQ", status: "valid", category: "Google" },
+  { id: "openai", name: "OpenAI", icon: "Bot", envVar: "OPENAI_API_KEY", maskedKey: "Not configured — required by Codex CLI & OpenClaw", status: "missing", category: "OpenAI" },
+  { id: "github", name: "GitHub", icon: "Key", envVar: "GITHUB_TOKEN", maskedKey: "ghp_••••••••••••••••••••••••••••••Kz", status: "valid", category: "Version Control" },
 ];
 
 export const cliFlags: CLIFlag[] = [

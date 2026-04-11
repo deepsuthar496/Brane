@@ -5,7 +5,7 @@ import { Titlebar } from "@/components/layout/titlebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AgentListItem, AddAgentListItem } from "@/components/agents/agent-list-item";
 import { AgentDetailView, Session } from "@/components/agents/agent-detail";
-import { Agent } from "@/lib/data";
+import { Agent, AgentStatus } from "@/lib/data";
 
 // ── Mock session data ──────────────────────────────────
 
@@ -43,9 +43,16 @@ export default function AgentsPage() {
           setIsLoading(true);
           const discovered = await window.electronAPI.discoverCLIs();
           if (isMounted) {
-            setAgents(discovered || []);
-            if (discovered && discovered.length > 0) {
-              setSelectedAgentId(discovered[0].id);
+            // Get initial status for each agent
+            const updatedAgents = await Promise.all((discovered || []).map(async (agent) => {
+              const { status } = await window.electronAPI.getAgentStatus(agent.id);
+              return { ...agent, status: status as AgentStatus };
+
+            }));
+            
+            setAgents(updatedAgents);
+            if (updatedAgents.length > 0 && !selectedAgentId) {
+              setSelectedAgentId(updatedAgents[0].id);
             }
           }
         } catch (err) {
@@ -57,7 +64,45 @@ export default function AgentsPage() {
     }
     fetchCLIs();
     return () => { isMounted = false; };
-  }, []);
+  }, [selectedAgentId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.electronAPI) return;
+
+    const unsubs: (() => void)[] = [];
+
+    agents.forEach(agent => {
+      const unsub = window.electronAPI.onAgentStatus(agent.id, (data) => {
+        setAgents(prev => prev.map(a => 
+          a.id === agent.id ? { ...a, status: data.status as AgentStatus } : a
+        ));
+      });
+      unsubs.push(unsub);
+    });
+
+    return () => unsubs.forEach(u => u());
+  }, [agents]);
+
+  const handleStartAgent = async () => {
+    if (!selectedAgent || typeof window === "undefined" || !window.electronAPI) return;
+    const command = selectedAgent.id === "gemini-cli" ? "gemini" : selectedAgent.id;
+    await window.electronAPI.startAgent({ id: selectedAgent.id, command });
+  };
+
+  const handleStopAgent = async () => {
+    if (!selectedAgent || typeof window === "undefined" || !window.electronAPI) return;
+    await window.electronAPI.stopAgent(selectedAgent.id);
+  };
+
+  const handleRestartAgent = async () => {
+    if (!selectedAgent || typeof window === "undefined" || !window.electronAPI) return;
+    await window.electronAPI.stopAgent(selectedAgent.id);
+    // Brief delay to ensure it's stopped before restarting
+    setTimeout(async () => {
+      const command = selectedAgent.id === "gemini-cli" ? "gemini" : selectedAgent.id;
+      await window.electronAPI.startAgent({ id: selectedAgent.id, command });
+    }, 500);
+  };
 
   const selectedAgent = agents.find((a) => a.id === selectedAgentId) || null;
   const agentSessions = MOCK_SESSIONS.filter(s => s.agentId === selectedAgentId);
@@ -119,7 +164,9 @@ export default function AgentsPage() {
             <AgentDetailView
               agent={selectedAgent}
               sessions={agentSessions}
-              onStartSession={() => {}}
+              onStartSession={handleStartAgent}
+              onStopAgent={handleStopAgent}
+              onRestartAgent={handleRestartAgent}
             />
           </div>
 

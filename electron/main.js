@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const { discoverCLIs, findCommandPath } = require("./cli-discovery");
@@ -5,7 +6,7 @@ const mcpManager = require("./mcp-manager");
 const registryManager = require("./registry-manager");
 const credentialsManager = require("./credentials-manager");
 const logsManager = require("./logs-manager");
-const { installCLI } = require("./execution-manager");
+const { installCLI, startAgent, stopAgent, getAgentStatus } = require("./execution-manager");
 
 const isDev = !app.isPackaged;
 
@@ -55,6 +56,18 @@ ipcMain.handle("check-cli-installed", async (event, command) => {
 // Execution IPC handlers
 ipcMain.handle("install-cli", async (event, payload) => {
   return await installCLI(event, payload);
+});
+
+ipcMain.handle("start-agent", async (event, payload) => {
+  return await startAgent(event, payload);
+});
+
+ipcMain.handle("stop-agent", async (event, id) => {
+  return await stopAgent(event, id);
+});
+
+ipcMain.handle("get-agent-status", async (event, id) => {
+  return await getAgentStatus(id);
 });
 ipcMain.handle("get-mcp-servers", async () => {
   return await mcpManager.getMcpServers();
@@ -106,6 +119,18 @@ ipcMain.handle("registry:toggleSkill", async (event, id, enabled) => {
 });
 
 // Credentials IPC handlers
+ipcMain.handle("credentials:getAll", async () => {
+  return await credentialsManager.getAllCredentials();
+});
+
+ipcMain.handle("credentials:save", async (event, { key, value }) => {
+  return await credentialsManager.saveCredential(key, value);
+});
+
+ipcMain.handle("credentials:delete", async (event, key) => {
+  return await credentialsManager.deleteCredential(key);
+});
+
 ipcMain.handle("credentials:getGithubToken", async () => {
   return await credentialsManager.getGithubToken();
 });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -23,14 +24,32 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getInstalledSkills: () => ipcRenderer.invoke("registry:getInstalledSkills"),
   getInstalledMcps: () => ipcRenderer.invoke("registry:getInstalledMcps"),
   toggleSkill: (id, enabled) => ipcRenderer.invoke("registry:toggleSkill", id, enabled),
+  getAllCredentials: () => ipcRenderer.invoke("credentials:getAll"),
+  saveCredential: (key, value) => ipcRenderer.invoke("credentials:save", { key, value }),
+  deleteCredential: (key) => ipcRenderer.invoke("credentials:delete", key),
   getGithubToken: () => ipcRenderer.invoke("credentials:getGithubToken"),
   setGithubToken: (token) => ipcRenderer.invoke("credentials:setGithubToken", token),
   getRegistryRepo: () => ipcRenderer.invoke("credentials:getRegistryRepo"),
   setRegistryRepo: (repo) => ipcRenderer.invoke("credentials:setRegistryRepo", repo),
   installCLI: (payload) => ipcRenderer.invoke("install-cli", payload),
   checkCLIInstalled: (command) => ipcRenderer.invoke("check-cli-installed", command),
+  startAgent: (payload) => ipcRenderer.invoke("start-agent", payload),
+  stopAgent: (id) => ipcRenderer.invoke("stop-agent", id),
+  getAgentStatus: (id) => ipcRenderer.invoke("get-agent-status", id),
   onInstallProgress: (id, callback) => {
     const channel = `install-progress:${id}`;
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+  onAgentLog: (id, callback) => {
+    const channel = `agent-log:${id}`;
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+  onAgentStatus: (id, callback) => {
+    const channel = `agent-status:${id}`;
     const listener = (event, data) => callback(data);
     ipcRenderer.on(channel, listener);
     return () => ipcRenderer.removeListener(channel, listener);

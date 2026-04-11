@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const inter = Inter({
@@ -31,6 +32,7 @@ export default function RootLayout({
     >
       <body className="h-screen overflow-hidden bg-background text-foreground font-sans text-[13px]">
         {children}
+        <Toaster />
       </body>
     </html>
   );
