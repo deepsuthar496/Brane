@@ -135,6 +135,26 @@ export default function SkillsPage() {
     id.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (selectedSkill) {
+    return (
+      <div className="flex flex-col h-screen">
+        <Titlebar />
+        <div className="flex flex-1 overflow-hidden">
+          <AppSidebar />
+          <main className="flex-1 flex flex-col overflow-hidden bg-background">
+            <SkillDetail 
+              skill={selectedSkill} 
+              isInstalled={!!installedSkills[selectedSkill.id]} 
+              onInstall={handleInstall}
+              onClose={() => setSelectedSkill(null)}
+              registryRepo={registryRepo}
+            />
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen">
       <Titlebar />
@@ -324,18 +344,6 @@ export default function SkillsPage() {
           </div>
         </main>
       </div>
-
-      <Sheet open={!!selectedSkill} onOpenChange={(open) => !open && setSelectedSkill(null)}>
-        {selectedSkill && (
-          <SkillDetail 
-            skill={selectedSkill} 
-            isInstalled={!!installedSkills[selectedSkill.id]} 
-            onInstall={handleInstall}
-            onClose={() => setSelectedSkill(null)}
-            registryRepo={registryRepo}
-          />
-        )}
-      </Sheet>
     </div>
   );
 }

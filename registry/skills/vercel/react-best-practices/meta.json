@@ -1,0 +1,19 @@
+{
+  "id": "react-best-practices",
+  "name": "React Best Practices",
+  "description": "Vercel Engineering's guide to high-performance React and Next.js.",
+  "icon": "⚛️",
+  "version": "1.0.0",
+  "author": "vercel",
+  "license": "mit",
+  "tags": ["react", "nextjs", "performance"],
+  "compatibleAgents": ["claude", "gemini", "cursor"],
+  "featured": true,
+  "path": "registry/skills/vercel/react-best-practices/SKILL.md",
+  "readme": "Expert procedural guidance for building high-performance React and Next.js applications. Includes rules for server components, bundle optimization, and rendering performance.",
+  "changelog": ["1.0.0 - Initial release"],
+  "screenshots": [],
+  "size": "45KB",
+  "installPath": "registry/skills/vercel/react-best-practices/SKILL.md",
+  "requiredCredentials": []
+}

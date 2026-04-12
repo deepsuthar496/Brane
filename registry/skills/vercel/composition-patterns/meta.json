@@ -1,0 +1,19 @@
+{
+  "id": "composition-patterns",
+  "name": "Composition Patterns",
+  "description": "Expert patterns for building flexible, maintainable React components.",
+  "icon": "🧩",
+  "version": "1.0.0",
+  "author": "vercel",
+  "license": "mit",
+  "tags": ["react", "architecture", "patterns"],
+  "compatibleAgents": ["claude", "gemini", "cursor"],
+  "featured": true,
+  "path": "registry/skills/vercel/composition-patterns/SKILL.md",
+  "readme": "Composition patterns for building flexible, maintainable React components. Avoid boolean prop proliferation by using compound components, lifting state, and composing internals. These patterns make codebases easier for both humans and AI agents to work with as they scale.",
+  "changelog": ["1.0.0 - Initial release"],
+  "screenshots": [],
+  "size": "15KB",
+  "installPath": "registry/skills/vercel/composition-patterns/SKILL.md",
+  "requiredCredentials": []
+}

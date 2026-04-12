@@ -1,0 +1,19 @@
+{
+  "id": "deploy-to-vercel",
+  "name": "Deploy to Vercel",
+  "description": "Deploy applications and websites to Vercel with preview support.",
+  "icon": "▲",
+  "version": "3.0.0",
+  "author": "vercel",
+  "license": "mit",
+  "tags": ["deployment", "vercel", "cloud"],
+  "compatibleAgents": ["claude", "gemini", "cursor"],
+  "featured": true,
+  "path": "registry/skills/vercel/deploy-to-vercel/SKILL.md",
+  "readme": "Deploy any project to Vercel. Always deploy as preview (not production) unless the user explicitly asks for production. The goal is to get the user into the best long-term setup: their project linked to Vercel with git-push deploys.",
+  "changelog": ["3.0.0 - Enhanced deployment logic"],
+  "screenshots": [],
+  "size": "25KB",
+  "installPath": "registry/skills/vercel/deploy-to-vercel/SKILL.md",
+  "requiredCredentials": ["VERCEL_TOKEN"]
+}

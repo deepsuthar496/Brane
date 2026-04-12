@@ -1,8 +1,9 @@
 {
   "version": 2,
-  "updatedAt": "2026-04-01",
+  "updatedAt": "2026-04-12",
   "categories": {
     "skills": [
+      { "id": "vercel", "label": "Vercel", "icon": "▲", "count": 7 },
       { "id": "documents", "label": "Documents", "icon": "📄", "count": 4 },
       { "id": "creative", "label": "Creative", "icon": "🎨", "count": 2 }
     ],
@@ -11,9 +12,14 @@
     ],
     "prompts": []
   },
-  "featured": ["docx", "pdf"],
-  "new": ["canvas", "algorithmic-art"],
+  "featured": ["react-best-practices", "deploy-to-vercel", "docx", "pdf"],
+  "new": ["composition-patterns", "react-view-transitions", "canvas", "algorithmic-art"],
   "collections": [
+    {
+      "id": "vercel-essentials",
+      "label": "Vercel Essentials",
+      "skillIds": ["deploy-to-vercel", "react-best-practices", "web-design-guidelines"]
+    },
     {
       "id": "getting-started",
       "label": "Getting started",
