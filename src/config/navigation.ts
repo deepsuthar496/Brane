@@ -27,13 +27,10 @@ export const mainNav: NavItem[] = [
   { label: "Credentials", icon: Lock, href: "/credentials", hasNotif: true },
 ];
 
-export const workspaceNav: NavItem[] = [
-  { label: "Logs", icon: FileText, href: "/logs" },
-  { label: "Activity", icon: Activity, href: "/activity" },
-];
+export const workspaceNav: NavItem[] = [];
 
 export const settingsNav: NavItem[] = [
   { label: "Settings", icon: Settings, action: "open-settings" },
 ];
 
-export const allNavigation = [...mainNav, ...workspaceNav, ...settingsNav];
+export const allNavigation = [...mainNav, ...settingsNav];
