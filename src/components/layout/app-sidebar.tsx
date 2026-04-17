@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { mainNav, workspaceNav } from "@/config/navigation";
 import { cn } from "@/lib/utils";
-import { Agent, AgentStatus } from "@/lib/data";
+import { useAgents } from "@/components/providers/agent-provider";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { SettingsModal } from "@/components/settings/settings-modal";
 import { Settings } from "lucide-react";
@@ -14,48 +14,13 @@ export function AppSidebar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const { agents } = useAgents();
 
-  // 1. Initial Load
   useEffect(() => {
-    async function loadAgents() {
-      if (typeof window !== "undefined" && window.electronAPI) {
-        try {
-          const discovered = await window.electronAPI.discoverCLIs();
-          const updatedAgents = await Promise.all((discovered || []).map(async (agent: any) => {
-            const { status } = await window.electronAPI.getAgentStatus(agent.id);
-            return { ...agent, status: status as AgentStatus };
-          }));
-          setAgents(updatedAgents);
-        } catch (err) {
-          console.error("Sidebar: Failed to load agents", err);
-        }
-      }
-    }
-    loadAgents();
-
     const handleOpenSettings = () => setIsSettingsOpen(true);
     window.addEventListener("open-settings", handleOpenSettings);
     return () => window.removeEventListener("open-settings", handleOpenSettings);
   }, []);
-
-  // 2. Status Subscriptions
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.electronAPI || agents.length === 0) return;
-    
-    const unsubs: (() => void)[] = [];
-    agents.forEach(agent => {
-      const unsub = window.electronAPI.onAgentStatus(agent.id, (data: { status: string }) => {
-        setAgents(prev => prev.map(a => 
-          a.id === agent.id ? { ...a, status: data.status as AgentStatus } : a
-        ));
-      });
-      unsubs.push(unsub);
-    });
-
-    return () => unsubs.forEach(u => u());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agents.map(a => a.id).join(",")]);
 
   const quickAccess = agents.slice(0, 4);
 

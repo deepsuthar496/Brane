@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Titlebar } from "@/components/layout/titlebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AgentListItem, AddAgentListItem } from "@/components/agents/agent-list-item";
 import { AgentDetailView, Session } from "@/components/agents/agent-detail";
-import { Agent, AgentStatus } from "@/lib/data";
+import { useAgents } from "@/components/providers/agent-provider";
 
 // ── Mock session data ──────────────────────────────────
 
@@ -31,58 +32,48 @@ const MOCK_SESSIONS: Session[] = [
 // ── Page ───────────────────────────────────────────────
 
 export default function AgentsPage() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  return (
+    <Suspense fallback={
+      <div className="flex-1 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <AgentsPageContent />
+    </Suspense>
+  );
+}
 
+function AgentsPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const queryId = searchParams.get("agent");
+
+  const { agents, isLoading } = useAgents();
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(queryId);
+
+  // Sync with URL params
   useEffect(() => {
-    let isMounted = true;
-    async function fetchCLIs() {
-      if (typeof window !== "undefined" && window.electronAPI) {
-        try {
-          setIsLoading(true);
-          const discovered = await window.electronAPI.discoverCLIs();
-          if (isMounted) {
-            // Get initial status for each agent
-            const updatedAgents = await Promise.all((discovered || []).map(async (agent) => {
-              const { status } = await window.electronAPI.getAgentStatus(agent.id);
-              return { ...agent, status: status as AgentStatus };
-
-            }));
-            
-            setAgents(updatedAgents);
-            setSelectedAgentId(prev => prev || (updatedAgents.length > 0 ? updatedAgents[0].id : null));
-          }
-        } catch (err) {
-          console.error("Failed to discover CLIs:", err);
-        } finally {
-          if (isMounted) setIsLoading(false);
-        }
-      }
+    if (queryId && queryId !== selectedAgentId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedAgentId(queryId);
     }
-    fetchCLIs();
-    return () => { isMounted = false; };
-  }, []);
+  }, [queryId, selectedAgentId]);
 
-  const agentIds = agents.map(a => a.id).join(',');
-
+  // Set initial selected agent once agents load
   useEffect(() => {
-    if (typeof window === "undefined" || !window.electronAPI) return;
+    if (agents.length > 0 && !selectedAgentId) {
+      const initialId = queryId || agents[0].id;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedAgentId(initialId);
+    }
+  }, [agents, selectedAgentId, queryId]);
 
-    const unsubs: (() => void)[] = [];
-
-    agents.forEach(agent => {
-      const unsub = window.electronAPI.onAgentStatus(agent.id, (data) => {
-        setAgents(prev => prev.map(a => 
-          a.id === agent.id ? { ...a, status: data.status as AgentStatus } : a
-        ));
-      });
-      unsubs.push(unsub);
-    });
-
-    return () => unsubs.forEach(u => u());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentIds]);
+  const handleSelectAgent = (id: string) => {
+    setSelectedAgentId(id);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("agent", id);
+    router.replace(`/?${params.toString()}`);
+  };
 
   const handleStartAgent = async () => {
     if (!selectedAgent || typeof window === "undefined" || !window.electronAPI) return;
@@ -149,7 +140,7 @@ export default function AgentsPage() {
                       key={agent.id}
                       agent={agent}
                       isSelected={selectedAgentId === agent.id}
-                      onSelect={() => setSelectedAgentId(agent.id)}
+                      onSelect={() => handleSelectAgent(agent.id)}
                     />
                   ))}
                   <div className="pt-2">
