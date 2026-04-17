@@ -39,6 +39,37 @@ interface SettingsModalProps {
 
 type TabCategory = "General" | "Shortcuts" | "Providers" | "Models";
 
+const NavItem = ({ 
+  id, 
+  label, 
+  icon: Icon, 
+  activeTab, 
+  setActiveTab 
+}: { 
+  id: TabCategory; 
+  label: string; 
+  icon: LucideIcon; 
+  activeTab: TabCategory; 
+  setActiveTab: (id: TabCategory) => void;
+}) => (
+  <button
+    onClick={() => setActiveTab(id)}
+    className={cn(
+      "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 group",
+      activeTab === id 
+        ? "bg-white/10 text-white shadow-sm" 
+        : "text-white/40 hover:text-white/70 hover:bg-white/5"
+    )}
+  >
+    <Icon className={cn("size-[14px] transition-colors", activeTab === id ? "text-primary" : "text-white/30 group-hover:text-white/50")} />
+    {label}
+  </button>
+);
+
+const SectionHeader = ({ title }: { title: string }) => (
+  <div className="text-[11px] font-semibold text-white/20 mb-2 px-3 uppercase tracking-wider mt-6 first:mt-0">{title}</div>
+);
+
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TabCategory>("General");
@@ -155,25 +186,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   if (!mounted || !isOpen) return null;
 
-  const NavItem = ({ id, label, icon: Icon }: { id: TabCategory; label: string; icon: LucideIcon }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={cn(
-        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 group",
-        activeTab === id 
-          ? "bg-white/10 text-white shadow-sm" 
-          : "text-white/40 hover:text-white/70 hover:bg-white/5"
-      )}
-    >
-      <Icon className={cn("size-[14px] transition-colors", activeTab === id ? "text-primary" : "text-white/30 group-hover:text-white/50")} />
-      {label}
-    </button>
-  );
-
-  const SectionHeader = ({ title }: { title: string }) => (
-    <div className="text-[11px] font-semibold text-white/20 mb-2 px-3 uppercase tracking-wider mt-6 first:mt-0">{title}</div>
-  );
-
   return createPortal(
     <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-200">
       
@@ -192,14 +204,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         <div className="w-[210px] bg-[#0a0a0a] flex flex-col pt-8 pb-6 px-3 border-r border-white/5 shrink-0">
           <SectionHeader title="Desktop" />
           <div className="space-y-0.5">
-            <NavItem id="General" label="General" icon={SettingsIcon} />
-            <NavItem id="Shortcuts" label="Shortcuts" icon={Keyboard} />
+            <NavItem id="General" label="General" icon={SettingsIcon} activeTab={activeTab} setActiveTab={setActiveTab} />
+            <NavItem id="Shortcuts" label="Shortcuts" icon={Keyboard} activeTab={activeTab} setActiveTab={setActiveTab} />
           </div>
 
           <SectionHeader title="Server" />
           <div className="space-y-0.5">
-            <NavItem id="Providers" label="Providers" icon={Cpu} />
-            <NavItem id="Models" label="Models" icon={Sparkles} />
+            <NavItem id="Providers" label="Providers" icon={Cpu} activeTab={activeTab} setActiveTab={setActiveTab} />
+            <NavItem id="Models" label="Models" icon={Sparkles} activeTab={activeTab} setActiveTab={setActiveTab} />
           </div>
 
           <div className="mt-auto px-3">
