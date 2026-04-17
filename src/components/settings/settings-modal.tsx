@@ -10,15 +10,26 @@ import {
   RefreshCw,
   Download,
   AlertCircle,
-  Database,
-  Monitor,
   Keyboard,
-  Globe,
-  Bell
+  Cpu,
+  Monitor,
+  Sparkles,
+  Search,
+  ShieldCheck,
+  LucideIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 interface SettingsModalProps {
@@ -26,9 +37,11 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+type TabCategory = "General" | "Shortcuts" | "Providers" | "Models";
+
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState("General");
+  const [activeTab, setActiveTab] = useState<TabCategory>("General");
   
   // Settings State
   const [registryRepo, setRegistryRepo] = useState("");
@@ -42,19 +55,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "available" | "downloading" | "ready" | "error" | "latest">("idle");
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
-  const [checkOnStartup, setCheckOnStartup] = useState(true);
 
   useEffect(() => {
     setMounted(true);
-    // Load checkOnStartup from localStorage
-    const saved = localStorage.getItem("brane_check_updates_startup");
-    if (saved !== null) setCheckOnStartup(saved === "true");
   }, []);
-
-  const handleToggleStartup = (checked: boolean) => {
-    setCheckOnStartup(checked);
-    localStorage.setItem("brane_check_updates_startup", String(checked));
-  };
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.electronAPI) return;
@@ -103,16 +107,12 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     if (isOpen) {
       async function loadConfig() {
         if (typeof window !== "undefined" && window.electronAPI) {
-          try {
-            const [token, repo] = await Promise.all([
-              window.electronAPI.getGithubToken(),
-              window.electronAPI.getRegistryRepo()
-            ]);
-            setGithubToken(token || "");
-            setRegistryRepo(repo || "deepsuthar496/Brane");
-          } catch (err) {
-            console.error("Failed to load settings config", err);
-          }
+          const [token, repo] = await Promise.all([
+            window.electronAPI.getGithubToken(),
+            window.electronAPI.getRegistryRepo()
+          ]);
+          setGithubToken(token || "");
+          setRegistryRepo(repo || "deepsuthar496/Brane");
         }
       }
       loadConfig();
@@ -155,292 +155,278 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   if (!mounted || !isOpen) return null;
 
+  const NavItem = ({ id, label, icon: Icon }: { id: TabCategory; label: string; icon: LucideIcon }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      className={cn(
+        "w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 group",
+        activeTab === id 
+          ? "bg-white/10 text-white shadow-sm" 
+          : "text-white/40 hover:text-white/70 hover:bg-white/5"
+      )}
+    >
+      <Icon className={cn("size-[14px] transition-colors", activeTab === id ? "text-primary" : "text-white/30 group-hover:text-white/50")} />
+      {label}
+    </button>
+  );
+
+  const SectionHeader = ({ title }: { title: string }) => (
+    <div className="text-[11px] font-semibold text-white/20 mb-2 px-3 uppercase tracking-wider mt-6 first:mt-0">{title}</div>
+  );
+
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[100] flex items-center justify-center p-6 animate-in fade-in duration-200">
       
       {/* Settings Modal Container */}
-      <div className="w-full max-w-[940px] h-[680px] flex rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-[#0f0f0f] relative animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-[840px] h-[580px] flex rounded-xl overflow-hidden shadow-2xl border border-white/5 bg-[#0f0f0f] relative animate-in zoom-in-95 duration-200">
         
         {/* Close Button */}
         <button 
           onClick={onClose} 
-          className="absolute top-4 right-4 text-white/20 hover:text-white transition-colors z-50 p-1.5 hover:bg-white/5 rounded-lg"
+          className="absolute top-4 right-4 text-white/20 hover:text-white transition-colors z-50 p-1 hover:bg-white/5 rounded-md"
         >
           <X className="size-4" />
         </button>
 
         {/* Sidebar */}
-        <div className="w-[240px] bg-[#141414] flex flex-col pt-10 pb-8 px-4 border-r border-white/5 shrink-0">
-          
-          <div className="flex flex-col gap-8 flex-1 overflow-y-auto scrollbar-none">
-            {/* Desktop Category */}
-            <div>
-              <div className="text-[11px] font-bold text-white/30 mb-3 px-3 uppercase tracking-[0.1em]">Desktop</div>
-              <div className="space-y-0.5">
-                {[
-                  { id: "General", icon: SettingsIcon, label: "General" },
-                  { id: "Shortcuts", icon: Keyboard, label: "Shortcuts" },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all group",
-                      activeTab === item.id 
-                        ? "bg-white/10 text-white shadow-sm" 
-                        : "text-white/40 hover:text-white/70 hover:bg-white/5"
-                    )}
-                  >
-                    <item.icon className={cn("size-4 transition-colors", activeTab === item.id ? "text-primary" : "text-white/30 group-hover:text-white/50")} />
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Registry Category */}
-            <div>
-              <div className="text-[11px] font-bold text-white/30 mb-3 px-3 uppercase tracking-[0.1em]">Registry</div>
-              <div className="space-y-0.5">
-                {[
-                  { id: "Source", icon: Database, label: "Source" },
-                  { id: "Token", icon: Globe, label: "GitHub Token" },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => setActiveTab(item.id)}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all group",
-                      activeTab === item.id 
-                        ? "bg-white/10 text-white shadow-sm" 
-                        : "text-white/40 hover:text-white/70 hover:bg-white/5"
-                    )}
-                  >
-                    <item.icon className={cn("size-4 transition-colors", activeTab === item.id ? "text-primary" : "text-white/30 group-hover:text-white/50")} />
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+        <div className="w-[210px] bg-[#0a0a0a] flex flex-col pt-8 pb-6 px-3 border-r border-white/5 shrink-0">
+          <SectionHeader title="Desktop" />
+          <div className="space-y-0.5">
+            <NavItem id="General" label="General" icon={SettingsIcon} />
+            <NavItem id="Shortcuts" label="Shortcuts" icon={Keyboard} />
           </div>
 
-          {/* Footer */}
-          <div className="mt-auto px-3 border-t border-white/5 pt-6">
-            <div className="text-[13px] text-white/80 font-bold tracking-tight">Brane Hub Desktop</div>
-            <div className="text-[11px] text-white/30 font-mono mt-0.5">v0.1.0</div>
+          <SectionHeader title="Server" />
+          <div className="space-y-0.5">
+            <NavItem id="Providers" label="Providers" icon={Cpu} />
+            <NavItem id="Models" label="Models" icon={Sparkles} />
+          </div>
+
+          <div className="mt-auto px-3">
+            <div className="text-[11px] text-white/40 font-medium tracking-tight">Brane Hub Desktop</div>
+            <div className="text-[10px] text-white/20 mt-0.5 font-mono">v0.1.0</div>
           </div>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto bg-[#0a0a0a]">
-          <div className="max-w-[640px] mx-auto py-12 px-10">
-            <h1 className="text-[24px] font-bold text-white mb-8 tracking-tight">{activeTab}</h1>
-            
-            {activeTab === "General" && (
-              <div className="space-y-10">
-                
-                {/* Updates Section */}
-                <section>
-                  <h3 className="text-[13px] font-semibold text-white/40 mb-4 uppercase tracking-wider">Updates</h3>
-                  <div className="bg-[#141414] rounded-2xl border border-white/5 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-[#0f0f0f]">
+          <ScrollArea className="flex-1">
+            <div className="p-8 max-w-[580px]">
+              {activeTab === "General" && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div>
+                    <h2 className="text-[18px] font-semibold text-white mb-1">General</h2>
+                    <p className="text-[13px] text-white/40 mb-6">Sound effects</p>
                     
-                    {/* Check on Startup */}
-                    <div className="flex items-center justify-between p-5 border-b border-white/[0.03] hover:bg-white/[0.01] transition-colors">
-                      <div className="space-y-1">
-                        <div className="text-[14px] font-medium text-white/90">Check for updates on startup</div>
-                        <div className="text-[12px] text-white/40 leading-relaxed">
-                          Automatically check for new versions when Brane Hub launches
+                    <div className="space-y-0.5 bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden">
+                      <div className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors">
+                        <div className="space-y-0.5">
+                          <div className="text-[13px] font-medium text-white/90">Agent</div>
+                          <div className="text-[11px] text-white/30">Play sound when the agent is complete or needs attention</div>
                         </div>
+                        <Select defaultValue="staplebops-01">
+                          <SelectTrigger className="h-8 w-[140px] bg-white/[0.03] border-white/10 text-[12px] text-white/70">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white/70">
+                            <SelectItem value="staplebops-01">Staplebops 01</SelectItem>
+                            <SelectItem value="staplebops-02">Staplebops 02</SelectItem>
+                            <SelectItem value="none">None</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <Switch 
-                        checked={checkOnStartup} 
-                        onCheckedChange={handleToggleStartup} 
-                        className="data-checked:bg-primary"
-                      />
-                    </div>
-
-                    {/* Release Notes */}
-                    <div className="flex items-center justify-between p-5 border-b border-white/[0.03] hover:bg-white/[0.01] transition-colors">
-                      <div className="space-y-1">
-                        <div className="text-[14px] font-medium text-white/90">Release notes</div>
-                        <div className="text-[12px] text-white/40 leading-relaxed">
-                          Show What's New popups after updating to a new version
+                      <Separator className="bg-white/5 mx-4 w-auto" />
+                      <div className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors">
+                        <div className="space-y-0.5">
+                          <div className="text-[13px] font-medium text-white/90">Permissions</div>
+                          <div className="text-[11px] text-white/30">Play sound when a permission is required</div>
                         </div>
+                        <Select defaultValue="staplebops-02">
+                          <SelectTrigger className="h-8 w-[140px] bg-white/[0.03] border-white/10 text-[12px] text-white/70">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white/70">
+                            <SelectItem value="staplebops-01">Staplebops 01</SelectItem>
+                            <SelectItem value="staplebops-02">Staplebops 02</SelectItem>
+                            <SelectItem value="none">None</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <Switch defaultChecked className="data-checked:bg-primary" />
-                    </div>
-
-                    {/* Check Now */}
-                    <div className="flex items-center justify-between p-5 hover:bg-white/[0.01] transition-colors">
-                      <div className="space-y-1">
-                        <div className="text-[14px] font-medium text-white/90">Check for updates</div>
-                        <div className="text-[12px] text-white/40 leading-relaxed">
-                          Manually check for updates and install if available
+                      <Separator className="bg-white/5 mx-4 w-auto" />
+                      <div className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors">
+                        <div className="space-y-0.5">
+                          <div className="text-[13px] font-medium text-white/90">Errors</div>
+                          <div className="text-[11px] text-white/30">Play sound when an error occurs</div>
                         </div>
-                        
-                        {/* Status Messaging */}
-                        {updateStatus === "latest" && (
-                          <div className="flex items-center gap-1.5 text-agent-green mt-2 animate-in fade-in slide-in-from-left-2">
-                            <Check className="size-3" />
-                            <span className="text-[11px] font-medium">You're on the latest version</span>
-                          </div>
-                        )}
-                        {updateStatus === "error" && (
-                          <div className="flex items-center gap-1.5 text-agent-red mt-2 animate-in fade-in slide-in-from-left-2">
-                            <AlertCircle className="size-3" />
-                            <span className="text-[11px] font-medium">{errorMessage || "Update failed"}</span>
-                          </div>
-                        )}
-                        {updateStatus === "downloading" && (
-                          <div className="mt-3 w-48 space-y-1.5 animate-in fade-in">
-                            <div className="flex justify-between text-[10px] font-mono">
-                              <span className="text-white/30 italic">Downloading...</span>
-                              <span className="text-primary font-bold">{Math.round(downloadProgress)}%</span>
-                            </div>
-                            <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-primary transition-all duration-300" 
-                                style={{ width: `${downloadProgress}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
+                        <Select defaultValue="nope-03">
+                          <SelectTrigger className="h-8 w-[140px] bg-white/[0.03] border-white/10 text-[12px] text-white/70">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-[#1a1a1a] border-white/10 text-white/70">
+                            <SelectItem value="nope-03">Nope 03</SelectItem>
+                            <SelectItem value="classic">Classic</SelectItem>
+                            <SelectItem value="none">None</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h2 className="text-[14px] font-semibold text-white/90 mb-4 tracking-tight">Updates</h2>
+                    <div className="space-y-0.5 bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden">
+                      <div className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors">
+                        <div className="space-y-0.5">
+                          <div className="text-[13px] font-medium text-white/90">Check for updates on startup</div>
+                          <div className="text-[11px] text-white/30">Automatically check for updates when Brane Hub launches</div>
+                        </div>
+                        <Switch className="data-[state=checked]:bg-primary" />
+                      </div>
+                      <Separator className="bg-white/5 mx-4 w-auto" />
+                      <div className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors">
+                        <div className="space-y-0.5">
+                          <div className="text-[13px] font-medium text-white/90">Release notes</div>
+                          <div className="text-[11px] text-white/30">Show What&apos;s New popups after updates</div>
+                        </div>
+                        <Switch defaultChecked className="data-[state=checked]:bg-primary" />
+                      </div>
+                      <Separator className="bg-white/5 mx-4 w-auto" />
+                      <div className="flex items-center justify-between p-4 hover:bg-white/[0.02] transition-colors">
+                        <div className="space-y-0.5">
+                          <div className="text-[13px] font-medium text-white/90">Check for updates</div>
+                          <div className="text-[11px] text-white/30">Manually check for updates and install if available</div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          {updateStatus === "ready" ? (
+                            <Button size="sm" onClick={handleRestart} className="h-7 bg-agent-green hover:bg-agent-green/90 text-black font-bold text-[11px] px-4 rounded-lg">
+                              Install Now
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="secondary" 
+                              onClick={handleCheckForUpdates}
+                              disabled={updateStatus === "checking" || updateStatus === "downloading"}
+                              className="h-7 bg-white/5 hover:bg-white/10 text-white/80 border-white/5 text-[11px] px-4 rounded-lg"
+                            >
+                              {updateStatus === "checking" ? <Loader2 className="size-3 animate-spin mr-2" /> : null}
+                              {updateStatus === "checking" ? "Checking..." : "Check now"}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                       
-                      {updateStatus === "ready" ? (
-                        <Button 
-                          onClick={handleRestart}
-                          className="bg-agent-green hover:bg-agent-green/90 text-black font-bold h-9 px-5 rounded-xl shadow-lg shadow-agent-green/10 flex items-center gap-2"
-                        >
-                          <Download className="size-4" />
-                          Restart and Install
-                        </Button>
-                      ) : (
-                        <Button 
-                          onClick={handleCheckForUpdates}
-                          disabled={updateStatus === "checking" || updateStatus === "downloading"}
-                          variant="secondary"
-                          className="bg-[#222] hover:bg-[#2a2a2a] text-white/80 border border-white/5 h-9 px-5 rounded-xl transition-all"
-                        >
-                          {updateStatus === "checking" ? (
-                            <div className="flex items-center gap-2">
-                              <Loader2 className="size-3.5 animate-spin text-primary" />
-                              <span>Checking...</span>
-                            </div>
-                          ) : (
-                            "Check now"
-                          )}
-                        </Button>
+                      {updateStatus === "downloading" && (
+                        <div className="px-4 pb-4 animate-in fade-in zoom-in-95 duration-200">
+                          <div className="flex justify-between text-[10px] mb-1.5 px-0.5">
+                            <span className="text-white/40 italic">Downloading v0.1.1...</span>
+                            <span className="text-primary/70 font-mono">{Math.round(downloadProgress)}%</span>
+                          </div>
+                          <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-primary transition-all duration-300 shadow-[0_0_8px_rgba(var(--primary-rgb),0.5)]" 
+                              style={{ width: `${downloadProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {updateStatus === "latest" && (
+                        <div className="px-4 pb-4 flex items-center gap-1.5 text-agent-green animate-in fade-in slide-in-from-top-1 duration-200">
+                          <Check className="size-3" />
+                          <span className="text-[10px] font-medium">You are on the latest version</span>
+                        </div>
                       )}
                     </div>
                   </div>
-                </section>
+                </div>
+              )}
 
-                {/* Notifications Section */}
-                <section>
-                  <h3 className="text-[13px] font-semibold text-white/40 mb-4 uppercase tracking-wider">Notifications</h3>
-                  <div className="bg-[#141414] rounded-2xl border border-white/5 overflow-hidden">
-                     <div className="flex items-center justify-between p-5 hover:bg-white/[0.01] transition-colors">
-                        <div className="space-y-1">
-                          <div className="text-[14px] font-medium text-white/90">Agent status alerts</div>
-                          <div className="text-[12px] text-white/40 leading-relaxed">
-                            Show desktop notifications when an agent crashes or finishes a long task
+              {activeTab === "Providers" && (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div>
+                    <h2 className="text-[18px] font-semibold text-white mb-1">Providers</h2>
+                    <p className="text-[13px] text-white/40 mb-6">Manage your external service connections</p>
+                    
+                    <div className="space-y-6">
+                      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="size-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
+                            <Monitor className="size-4 text-primary/80" />
+                          </div>
+                          <div>
+                            <div className="text-[14px] font-medium text-white/90">Registry Source</div>
+                            <div className="text-[12px] text-white/30 leading-snug mt-0.5">
+                              The GitHub repository used for discovering Skills and MCP Servers.
+                            </div>
                           </div>
                         </div>
-                        <Switch defaultChecked className="data-checked:bg-primary" />
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            value={registryRepo}
+                            onChange={(e) => setRegistryRepo(e.target.value)}
+                            placeholder="owner/repo"
+                            className="h-9 bg-black/40 border-white/5 text-[13px] text-white/90 focus-visible:ring-primary/20 font-mono rounded-lg px-3"
+                          />
+                          <Button 
+                            variant="secondary"
+                            onClick={handleSaveRepo} 
+                            disabled={isSavingRepo || registryRepo.trim() === ""} 
+                            className="h-9 px-4 bg-white/5 hover:bg-white/10 text-white/80 border-white/5 rounded-lg text-[13px]"
+                          >
+                            {isSavingRepo ? <Loader2 className="size-3.5 animate-spin" /> : repoSaved ? <Check className="size-3.5 text-green-400" /> : "Save"}
+                          </Button>
+                        </div>
                       </div>
-                  </div>
-                </section>
 
-              </div>
-            )}
-
-            {activeTab === "Source" && (
-              <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="bg-[#141414] p-8 rounded-2xl border border-white/5">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="size-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                      <Database className="size-6 text-primary" />
+                      <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="size-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/10">
+                            <ShieldCheck className="size-4 text-primary/80" />
+                          </div>
+                          <div>
+                            <div className="text-[14px] font-medium text-white/90">GitHub Access Token</div>
+                            <div className="text-[12px] text-white/30 leading-snug mt-0.5">
+                              Required to bypass rate limits or access private registries.
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            type="password"
+                            value={githubToken}
+                            onChange={(e) => setGithubToken(e.target.value)}
+                            placeholder="ghp_..."
+                            className="h-9 bg-black/40 border-white/5 text-[13px] text-white/90 focus-visible:ring-primary/20 font-mono rounded-lg px-3"
+                          />
+                          <Button 
+                            variant="secondary"
+                            onClick={handleSaveToken} 
+                            disabled={isSavingToken} 
+                            className="h-9 px-4 bg-white/5 hover:bg-white/10 text-white/80 border-white/5 rounded-lg text-[13px]"
+                          >
+                            {isSavingToken ? <Loader2 className="size-3.5 animate-spin" /> : tokenSaved ? <Check className="size-3.5 text-green-400" /> : "Save"}
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">Registry Source</h3>
-                      <p className="text-sm text-white/40">Where Brane Hub looks for Skills and MCPs</p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <label className="text-[13px] font-medium text-white/60 ml-1">GitHub Repository (owner/repo)</label>
-                    <div className="flex gap-3">
-                      <Input 
-                        value={registryRepo}
-                        onChange={(e) => setRegistryRepo(e.target.value)}
-                        placeholder="owner/repo"
-                        className="bg-[#0a0a0a] border-white/10 h-11 px-4 rounded-xl text-white focus-visible:ring-primary/20 font-mono"
-                      />
-                      <Button 
-                        onClick={handleSaveRepo} 
-                        disabled={isSavingRepo || registryRepo.trim() === ""} 
-                        className="h-11 px-6 rounded-xl font-bold bg-white text-black hover:bg-white/90"
-                      >
-                        {isSavingRepo ? <Loader2 className="size-4 animate-spin" /> : repoSaved ? <Check className="size-4" /> : "Save"}
-                      </Button>
-                    </div>
-                    <p className="text-[11px] text-white/30 italic mt-2 ml-1">Default: deepsuthar496/Brane</p>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeTab === "Token" && (
-              <div className="space-y-6 animate-in fade-in duration-300">
-                <div className="bg-[#141414] p-8 rounded-2xl border border-white/5">
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="size-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-                      <Globe className="size-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-white">GitHub Access Token</h3>
-                      <p className="text-sm text-white/40">Personal Access Token for API requests</p>
-                    </div>
+              {(activeTab === "Shortcuts" || activeTab === "Models") && (
+                <div className="h-full flex flex-col items-center justify-center text-center space-y-3 py-20 opacity-40 animate-in fade-in duration-300">
+                  <div className="size-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 shadow-inner">
+                    <Search className="size-5 text-white/40" />
                   </div>
-                  
-                  <div className="space-y-4">
-                    <label className="text-[13px] font-medium text-white/60 ml-1">Personal Access Token (classic or fine-grained)</label>
-                    <div className="flex gap-3">
-                      <Input 
-                        type="password"
-                        value={githubToken}
-                        onChange={(e) => setGithubToken(e.target.value)}
-                        placeholder="ghp_..."
-                        className="bg-[#0a0a0a] border-white/10 h-11 px-4 rounded-xl text-white focus-visible:ring-primary/20 font-mono"
-                      />
-                      <Button 
-                        onClick={handleSaveToken} 
-                        disabled={isSavingToken} 
-                        className="h-11 px-6 rounded-xl font-bold bg-white text-black hover:bg-white/90"
-                      >
-                        {isSavingToken ? <Loader2 className="size-4 animate-spin" /> : tokenSaved ? <Check className="size-4" /> : "Save"}
-                      </Button>
-                    </div>
-                    <p className="text-[11px] text-white/30 leading-relaxed mt-4 ml-1">
-                      Required if you hit GitHub's rate limits or wish to use a private repository as your registry source.
-                    </p>
+                  <div>
+                    <div className="text-[15px] font-medium text-white">Coming Soon</div>
+                    <div className="text-[12px] text-white/40 mt-1 max-w-[200px]">We&apos;re still polishing the {activeTab.toLowerCase()} configuration.</div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {activeTab === "Shortcuts" && (
-              <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
-                <div className="size-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-6">
-                  <Keyboard className="size-8 text-white/20" />
-                </div>
-                <h3 className="text-lg font-bold text-white">Keyboard Shortcuts</h3>
-                <p className="text-sm text-white/40 max-w-[280px] mt-2">Custom shortcuts for quick agent access are coming soon.</p>
-              </div>
-            )}
-
-          </div>
+              )}
+            </div>
+          </ScrollArea>
         </div>
 
       </div>
