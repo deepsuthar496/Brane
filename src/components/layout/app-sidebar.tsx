@@ -1,34 +1,22 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { mainNav, workspaceNav } from "@/config/navigation";
 import { cn } from "@/lib/utils";
-import { useAgents } from "@/components/providers/agent-provider";
-import { AgentIcon } from "@/components/agents/agent-icon";
 import { SettingsModal } from "@/components/settings/settings-modal";
 import { Settings } from "lucide-react";
 
 export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { agents } = useAgents();
 
   useEffect(() => {
     const handleOpenSettings = () => setIsSettingsOpen(true);
     window.addEventListener("open-settings", handleOpenSettings);
     return () => window.removeEventListener("open-settings", handleOpenSettings);
   }, []);
-
-  const quickAccess = agents.slice(0, 4);
-
-  const handleQuickAccessClick = (agentId: string) => {
-    const currentAgent = searchParams.get("agent");
-    if (pathname === "/" && currentAgent === agentId) return;
-    router.push(`/?agent=${agentId}`);
-  };
 
   return (
     <>
@@ -77,57 +65,6 @@ export function AppSidebar() {
               </button>
             );
           })}
-        </div>
-
-        {/* Quick Access */}
-        <div className="py-4 px-2 border-t border-border">
-          <div className="text-[10.5px] font-semibold tracking-wide uppercase text-txt-3 px-2 mb-1">
-            Quick Access
-          </div>
-          {quickAccess.length === 0 ? (
-            <div className="px-2 py-2 text-[11px] text-txt-4 italic">No agents discovered</div>
-          ) : (
-            quickAccess.map((agent) => {
-              const isRunning = agent.status === "running";
-              const isActive = pathname === "/" && searchParams.get("agent") === agent.id;
-
-              return (
-                <button
-                  key={agent.id}
-                  onClick={() => handleQuickAccessClick(agent.id)}
-                  className={cn(
-                    "flex items-center gap-[9px] px-2.5 py-1.5 rounded-md cursor-pointer text-[13px] font-[450] w-full text-left transition-all",
-                    isActive
-                      ? "bg-sidebar-accent text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <div className="relative">
-                    <span className={cn(
-                      "size-4 flex items-center justify-center shrink-0 transition-transform",
-                      isRunning && "scale-110"
-                    )}>
-                      <AgentIcon icon={agent.icon} className="size-3.5" />
-                    </span>
-                    {isRunning && (
-                      <div className="absolute inset-0 size-4 bg-primary/20 rounded-full blur-[4px] animate-pulse" />
-                    )}
-                  </div>
-                  <span className="truncate flex-1">{agent.name}</span>
-                  <div
-                    className={cn(
-                      "size-[6px] rounded-full shrink-0 ml-auto transition-all",
-                      isRunning
-                        ? "bg-agent-green shadow-[0_0_0_2px_var(--agent-green-dim)]"
-                        : agent.status === "error"
-                        ? "bg-agent-red shadow-[0_0_0_2px_var(--agent-red-dim)]"
-                        : "bg-txt-4"
-                    )}
-                  />
-                </button>
-              );
-            })
-          )}
         </div>
 
         {/* Workspace */}
