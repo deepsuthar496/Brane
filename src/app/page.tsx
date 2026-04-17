@@ -51,9 +51,7 @@ export default function AgentsPage() {
             }));
             
             setAgents(updatedAgents);
-            if (updatedAgents.length > 0 && !selectedAgentId) {
-              setSelectedAgentId(updatedAgents[0].id);
-            }
+            setSelectedAgentId(prev => prev || (updatedAgents.length > 0 ? updatedAgents[0].id : null));
           }
         } catch (err) {
           console.error("Failed to discover CLIs:", err);
@@ -64,7 +62,9 @@ export default function AgentsPage() {
     }
     fetchCLIs();
     return () => { isMounted = false; };
-  }, [selectedAgentId]);
+  }, []);
+
+  const agentIds = agents.map(a => a.id).join(',');
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.electronAPI) return;
@@ -81,7 +81,8 @@ export default function AgentsPage() {
     });
 
     return () => unsubs.forEach(u => u());
-  }, [agents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentIds]);
 
   const handleStartAgent = async () => {
     if (!selectedAgent || typeof window === "undefined" || !window.electronAPI) return;

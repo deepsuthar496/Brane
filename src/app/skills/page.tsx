@@ -63,13 +63,11 @@ export default function SkillsPage() {
     try {
       const data = await window.electronAPI.fetchRegistryData<RegistryIndex>(registryUrls.index);
       setRegistryIndex(data);
-      if (data.categories.skills.length > 0 && !activeCategory) {
-        setActiveCategory(data.categories.skills[0].id);
-      }
+      setActiveCategory(prev => prev || (data.categories.skills.length > 0 ? data.categories.skills[0].id : null));
     } catch (error) {
       console.error("Failed to fetch registry index:", error);
     }
-  }, [activeCategory, registryUrls]);
+  }, [registryUrls]);
 
   const fetchCategorySkills = useCallback(async (categoryId: string) => {
     setLoading(true);

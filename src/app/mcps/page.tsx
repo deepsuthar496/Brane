@@ -85,13 +85,11 @@ export default function MCPPage() {
     try {
       const data = await window.electronAPI.fetchRegistryData<RegistryIndex>(registryUrls.index);
       setRegistryIndex(data);
-      if (data.categories.mcps.length > 0 && !activeCategory) {
-        setActiveCategory(data.categories.mcps[0].id);
-      }
+      setActiveCategory(prev => prev || (data.categories.mcps.length > 0 ? data.categories.mcps[0].id : null));
     } catch (error) {
       console.error("Failed to fetch registry index:", error);
     }
-  }, [activeCategory, registryUrls]);
+  }, [registryUrls]);
 
   const fetchCategoryMcps = useCallback(async (categoryId: string) => {
     setLoading(true);
