@@ -36,6 +36,37 @@ contextBridge.exposeInMainWorld("electronAPI", {
   startAgent: (payload) => ipcRenderer.invoke("start-agent", payload),
   stopAgent: (id) => ipcRenderer.invoke("stop-agent", id),
   getAgentStatus: (id) => ipcRenderer.invoke("get-agent-status", id),
+  
+  // Auto-update
+  checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
+  restartAndInstall: () => ipcRenderer.send("restart-and-install"),
+  
+  onUpdateAvailable: (callback) => {
+    const listener = (event, info) => callback(info);
+    ipcRenderer.on("update-available", listener);
+    return () => ipcRenderer.removeListener("update-available", listener);
+  },
+  onUpdateNotAvailable: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on("update-not-available", listener);
+    return () => ipcRenderer.removeListener("update-not-available", listener);
+  },
+  onUpdateDownloadProgress: (callback) => {
+    const listener = (event, progress) => callback(progress);
+    ipcRenderer.on("update-download-progress", listener);
+    return () => ipcRenderer.removeListener("update-download-progress", listener);
+  },
+  onUpdateDownloaded: (callback) => {
+    const listener = (event, info) => callback(info);
+    ipcRenderer.on("update-downloaded", listener);
+    return () => ipcRenderer.removeListener("update-downloaded", listener);
+  },
+  onUpdateError: (callback) => {
+    const listener = (event, message) => callback(message);
+    ipcRenderer.on("update-error", listener);
+    return () => ipcRenderer.removeListener("update-error", listener);
+  },
+
   onInstallProgress: (id, callback) => {
     const channel = `install-progress:${id}`;
     const listener = (event, data) => callback(data);

@@ -42,6 +42,16 @@ export interface ElectronAPI {
   startAgent: (payload: { id: string; command: string }) => Promise<{ success: boolean; error?: string }>;
   stopAgent: (id: string) => Promise<{ success: boolean; error?: string }>;
   getAgentStatus: (id: string) => Promise<{ status: "running" | "stopped" | "error"; startTime?: number }>;
+  
+  // Auto-update
+  checkForUpdates: () => Promise<any>;
+  restartAndInstall: () => void;
+  onUpdateAvailable: (callback: (info: any) => void) => () => void;
+  onUpdateNotAvailable: (callback: () => void) => () => void;
+  onUpdateDownloadProgress: (callback: (percent: number) => void) => () => void;
+  onUpdateDownloaded: (callback: (info: any) => void) => () => void;
+  onUpdateError: (callback: (message: string) => void) => () => void;
+
   onInstallProgress: (id: string, callback: (data: { type: string; data: string }) => void) => () => void;
   onAgentLog: (id: string, callback: (data: { type: string; data: string }) => void) => () => void;
   onAgentStatus: (id: string, callback: (data: { status: string; error?: string; code?: number }) => void) => () => void;

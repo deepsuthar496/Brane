@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
+const { autoUpdater } = require("electron-updater");
+const log = require("electron-log");
+
+// Configure logging
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = "info";
+log.info("App starting...");
+
 const { discoverCLIs, findCommandPath } = require("./cli-discovery");
 const mcpManager = require("./mcp-manager");
 const registryManager = require("./registry-manager");
@@ -147,6 +155,18 @@ ipcMain.handle("credentials:setRegistryRepo", async (event, repo) => {
   return await credentialsManager.setRegistryRepo(repo);
 });
 
+// Auto-update IPC handlers
+ipcMain.handle("check-for-updates", async () => {
+  if (isDev) {
+    return { status: "no-update", message: "Updates not available in development" };
+  }
+  return await autoUpdater.checkForUpdates();
+});
+
+ipcMain.on("restart-and-install", () => {
+  autoUpdater.quitAndInstall(false, true);
+});
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -169,9 +189,39 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, "../out/index.html"));
   }
+
+  // Update event listeners
+  autoUpdater.on("update-available", (info) => {
+    mainWindow.webContents.send("update-available", info);
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    mainWindow.webContents.send("update-not-available");
+  });
+
+  autoUpdater.on("download-progress", (progress) => {
+    mainWindow.webContents.send("update-download-progress", progress.percent);
+  });
+
+  autoUpdater.on("update-downloaded", (info) => {
+    mainWindow.webContents.send("update-downloaded", info);
+  });
+
+  autoUpdater.on("error", (err) => {
+    mainWindow.webContents.send("update-error", err.message);
+  });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  
+  // Check for updates on startup
+  if (!isDev) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdatesAndNotify();
+    }, 5000);
+  }
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
