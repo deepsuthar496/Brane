@@ -67,6 +67,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener("update-error", listener);
   },
 
+  // Knowledge Base
+  listKnowledgeFiles: () => ipcRenderer.invoke("knowledge:listFiles"),
+  addKnowledgeFile: (name, content) => ipcRenderer.invoke("knowledge:addFile", { name, content }),
+  addKnowledgeFileFromPath: (path) => ipcRenderer.invoke("knowledge:addFileFromPath", path),
+  removeKnowledgeFile: (name) => ipcRenderer.invoke("knowledge:removeFile", name),
+  getKnowledgePath: () => ipcRenderer.invoke("knowledge:getPath"),
+
   onInstallProgress: (id, callback) => {
     const channel = `install-progress:${id}`;
     const listener = (event, data) => callback(data);

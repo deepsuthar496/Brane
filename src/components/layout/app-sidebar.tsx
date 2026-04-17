@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { mainNav, workspaceNav } from "@/config/navigation";
 import { cn } from "@/lib/utils";
 import { SettingsModal } from "@/components/settings/settings-modal";
+import { KnowledgeDropzone } from "./knowledge-dropzone";
 import { Settings } from "lucide-react";
 
 export function AppSidebar() {
@@ -96,8 +97,11 @@ export function AppSidebar() {
           </div>
         )}
 
+        {/* Knowledge Base */}
+        <KnowledgeDropzone />
+
         {/* Settings Button */}
-        <div className="mt-auto p-2 border-t border-border">
+        <div className="p-2 border-t border-border">
           <button
             onClick={() => setIsSettingsOpen(true)}
             className={cn(

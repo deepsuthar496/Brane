@@ -52,6 +52,13 @@ export interface ElectronAPI {
   onUpdateDownloaded: (callback: (info: any) => void) => () => void;
   onUpdateError: (callback: (message: string) => void) => () => void;
 
+  // Knowledge Base
+  listKnowledgeFiles: () => Promise<any[]>;
+  addKnowledgeFile: (name: string, content: string) => Promise<any[]>;
+  addKnowledgeFileFromPath: (path: string) => Promise<any[]>;
+  removeKnowledgeFile: (name: string) => Promise<any[]>;
+  getKnowledgePath: () => Promise<string>;
+
   onInstallProgress: (id: string, callback: (data: { type: string; data: string }) => void) => () => void;
   onAgentLog: (id: string, callback: (data: { type: string; data: string }) => void) => () => void;
   onAgentStatus: (id: string, callback: (data: { status: string; error?: string; code?: number }) => void) => () => void;

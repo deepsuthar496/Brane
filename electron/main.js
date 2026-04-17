@@ -14,6 +14,7 @@ const mcpManager = require("./mcp-manager");
 const registryManager = require("./registry-manager");
 const credentialsManager = require("./credentials-manager");
 const logsManager = require("./logs-manager");
+const knowledgeManager = require("./knowledge-manager");
 const { installCLI, startAgent, stopAgent, getAgentStatus } = require("./execution-manager");
 
 const isDev = !app.isPackaged;
@@ -153,6 +154,27 @@ ipcMain.handle("credentials:getRegistryRepo", async () => {
 
 ipcMain.handle("credentials:setRegistryRepo", async (event, repo) => {
   return await credentialsManager.setRegistryRepo(repo);
+});
+
+// Knowledge Base IPC handlers
+ipcMain.handle("knowledge:listFiles", async () => {
+  return await knowledgeManager.listFiles();
+});
+
+ipcMain.handle("knowledge:addFile", async (event, { name, content }) => {
+  return await knowledgeManager.addFile(name, content);
+});
+
+ipcMain.handle("knowledge:addFileFromPath", async (event, sourcePath) => {
+  return await knowledgeManager.addFileFromPath(sourcePath);
+});
+
+ipcMain.handle("knowledge:removeFile", async (event, name) => {
+  return await knowledgeManager.removeFile(name);
+});
+
+ipcMain.handle("knowledge:getPath", () => {
+  return knowledgeManager.KNOWLEDGE_DIR;
 });
 
 // Auto-update IPC handlers
