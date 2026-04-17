@@ -13,11 +13,23 @@ import {
   Info,
   ExternalLink,
   ShieldCheck,
-  FileCode
+  FileCode,
+  ArrowRight,
+  Database,
+  History,
+  FolderOpen,
+  Filter,
+  FileJson,
+  FileDigit,
+  LayoutGrid,
+  List as ListIcon,
+  Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Titlebar } from "@/components/layout/titlebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { PageHeader } from "@/components/layout/page-header";
+import { KnowledgeCard } from "@/components/knowledge/knowledge-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -34,7 +46,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 interface KnowledgeFile {
@@ -45,11 +58,16 @@ interface KnowledgeFile {
   extension: string;
 }
 
+const tabs = ["Knowledge Index", "Configuration"];
+
 export default function KnowledgePage() {
+  const [activeTab, setActiveTab] = useState("Knowledge Index");
   const [files, setFiles] = useState<KnowledgeFile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const loadFiles = useCallback(async () => {
     if (typeof window === "undefined" || !window.electronAPI) return;
@@ -106,9 +124,39 @@ export default function KnowledgePage() {
     }
   };
 
-  const filteredFiles = files.filter(f => 
-    f.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleBrowse = async () => {
+    if (typeof window === "undefined" || !window.electronAPI) return;
+    try {
+      const result = await window.electronAPI.browseFiles({
+        properties: ["openFile", "multiSelections"],
+        filters: [
+          { name: "Documents", extensions: ["md", "txt", "pdf", "docx", "json"] },
+          { name: "Code", extensions: ["js", "ts", "tsx", "py", "rs", "go", "c", "cpp", "json"] },
+          { name: "All Files", extensions: ["*"] }
+        ]
+      });
+
+      if (result.canceled) return;
+
+      for (const filePath of result.filePaths) {
+        await window.electronAPI.addKnowledgeFileFromPath(filePath);
+      }
+      
+      toast.success(`Successfully indexed ${result.filePaths.length} file(s)`);
+      loadFiles();
+    } catch (error) {
+      console.error("Knowledge: browse error", error);
+      toast.error("Failed to index files");
+    }
+  };
+
+  const filteredFiles = files.filter(f => {
+    const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase());
+    if (activeCategory === "all") return matchesSearch;
+    if (activeCategory === "code") return matchesSearch && ["js", "ts", "tsx", "py", "rs", "go", "json", "c", "cpp"].includes(f.extension);
+    if (activeCategory === "docs") return matchesSearch && ["md", "txt", "pdf", "docx", "html"].includes(f.extension);
+    return matchesSearch;
+  });
 
   const formatSize = (bytes: number) => {
     if (bytes === 0) return "0 B";
@@ -118,194 +166,265 @@ export default function KnowledgePage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
+  const getFileIcon = (ext: string) => {
+    switch (ext) {
+      case "md": return <FileText className="size-5 text-blue-400/80" />;
+      case "json": return <FileJson className="size-5 text-agent-yellow/80" />;
+      case "js":
+      case "ts":
+      case "tsx":
+      case "py":
+        return <FileCode className="size-5 text-primary/80" />;
+      default: return <FileText className="size-5 text-white/40" />;
+    }
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col h-screen">
       <Titlebar />
       <div className="flex flex-1 overflow-hidden">
         <AppSidebar />
-        <main className="flex-1 flex flex-col overflow-hidden">
-          
-          {/* Header */}
-          <div className="px-8 pt-8 pb-6 border-b border-white/5 bg-surface-2/20">
-            <div className="flex items-center justify-between max-w-6xl mx-auto">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <BrainCircuit className="size-5 text-primary" />
-                  <h1 className="text-[20px] font-semibold text-white tracking-tight">Global Knowledge</h1>
-                </div>
-                <p className="text-[13px] text-white/40 max-w-[600px]">
-                  Drop files here to provide all agents with global context. Agents can autonomously search and read from this base using the internal MCP server.
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                 <div className="text-right mr-2">
-                    <div className="text-[14px] font-medium text-white/90">{files.length} Files</div>
-                    <div className="text-[11px] text-white/30 tracking-wide uppercase font-semibold">Indexed Context</div>
+        <main className="flex-1 flex flex-col overflow-hidden bg-background">
+          <PageHeader
+            breadcrumbs={["Workspace", "Knowledge"]}
+            title="Global Knowledge"
+            subtitle="Centralized context and documentation shared across all agent sessions"
+            actions={
+              <div className="flex items-center gap-2">
+                 <div className="flex items-center bg-surface-2 rounded-lg p-0.5 border border-border/40">
+                    <button 
+                      onClick={() => setViewMode("grid")}
+                      className={cn("p-1.5 rounded-md transition-all", viewMode === "grid" ? "bg-background text-primary shadow-sm" : "text-txt-4 hover:text-txt-3")}
+                    >
+                      <LayoutGrid className="size-3.5" />
+                    </button>
+                    <button 
+                      onClick={() => setViewMode("list")}
+                      className={cn("p-1.5 rounded-md transition-all", viewMode === "list" ? "bg-background text-primary shadow-sm" : "text-txt-4 hover:text-txt-3")}
+                    >
+                      <ListIcon className="size-3.5" />
+                    </button>
                  </div>
-                 <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-5 h-9 rounded-lg gap-2 shadow-lg shadow-primary/10">
-                    <Plus className="size-4" />
+                 <Button 
+                    onClick={handleBrowse}
+                    size="sm" 
+                    className="h-8 px-3 text-xs gap-1.5 font-bold bg-primary text-black hover:bg-primary/90 rounded-lg"
+                 >
+                    <Plus className="size-[14px]" />
                     Add Source
                  </Button>
               </div>
-            </div>
+            }
+          />
+
+          {/* Tabs */}
+          <div className="flex items-center gap-0.5 px-7 pt-5 border-b border-border shrink-0" role="tablist">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                role="tab"
+                aria-selected={activeTab === tab}
+                onClick={() => setActiveTab(tab)}
+                className={cn(
+                  "px-3.5 py-2 text-[13px] font-[450] cursor-pointer border-b-2 transition-colors relative bottom-[-1px]",
+                  activeTab === tab
+                    ? "text-foreground border-primary font-medium"
+                    : "text-txt-3 border-transparent hover:text-muted-foreground"
+                )}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-8 bg-[#0a0a09]">
-            <div className="max-w-6xl mx-auto space-y-8">
-              
-              {/* Dropzone Area */}
-              <div
+          <div className="flex-1 flex overflow-hidden">
+            {/* Hierarchy Sidebar */}
+            {activeTab === "Knowledge Index" && (
+              <aside className="w-56 border-r border-border flex flex-col shrink-0">
+                <div className="p-4 border-b border-border">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-txt-4" />
+                    <Input 
+                      placeholder="Search context..." 
+                      className="pl-8 h-8 text-xs bg-surface-1 border-border"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-2">
+                  <div className="text-[10px] font-bold text-txt-4 uppercase tracking-wider px-3 mb-2">
+                    Collections
+                  </div>
+                  <nav className="space-y-0.5">
+                    {[
+                      { id: "all", label: "All Context", icon: <Database className="size-4" />, count: files.length },
+                      { id: "docs", label: "Documentation", icon: <FileText className="size-4" />, count: files.filter(f => ["md", "txt", "pdf"].includes(f.extension)).length },
+                      { id: "code", label: "Source Code", icon: <FileCode className="size-4" />, count: files.filter(f => ["js", "ts", "py", "rs"].includes(f.extension)).length },
+                      { id: "history", label: "Recently Indexed", icon: <History className="size-4" />, count: files.filter(f => new Date(f.updatedAt).getTime() > Date.now() - 86400000).length },
+                    ].map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setActiveCategory(cat.id)}
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] transition-colors",
+                          activeCategory === cat.id
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-txt-3 hover:bg-surface-2 hover:text-foreground"
+                        )}
+                      >
+                        <span className="size-4 flex items-center justify-center">{cat.icon}</span>
+                        <span className="flex-1 text-left">{cat.label}</span>
+                        <span className="text-[10px] text-txt-4">{cat.count}</span>
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+              </aside>
+            )}
+
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-y-auto bg-background relative">
+              {/* Invisible Dropzone Overlay */}
+              <div 
+                className={cn(
+                  "absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md transition-all duration-300 pointer-events-none opacity-0 scale-95",
+                  isDragging && "pointer-events-auto opacity-100 scale-100"
+                )}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={onDrop}
-                className={cn(
-                  "relative group rounded-2xl border-2 border-dashed transition-all duration-300 flex flex-col items-center justify-center py-12 px-6 bg-white/[0.01]",
-                  isDragging 
-                    ? "border-primary bg-primary/5 scale-[1.01] shadow-2xl shadow-primary/5" 
-                    : "border-white/5 hover:border-white/10 hover:bg-white/[0.02]"
-                )}
               >
-                <div className="size-16 rounded-3xl bg-white/5 border border-white/5 flex items-center justify-center mb-4 transition-transform group-hover:scale-110 duration-500">
-                  <Upload className={cn(
-                    "size-7 transition-colors duration-300",
-                    isDragging ? "text-primary" : "text-white/20 group-hover:text-white/40"
-                  )} />
+                <div className="size-24 rounded-[3rem] bg-primary/10 border-2 border-dashed border-primary flex items-center justify-center mb-6 transition-transform hover:-translate-y-2 duration-500 ease-out">
+                   <Upload className="size-10 text-primary" />
                 </div>
-                <h3 className="text-[16px] font-medium text-white/90 mb-1">
-                  {isDragging ? "Release to Index" : "Drop files to enhance agents"}
-                </h3>
-                <p className="text-[13px] text-white/30 text-center max-w-[400px]">
-                  Markdown, PDF, and Text files work best. These will be accessible across all active agent sessions.
-                </p>
+                <h2 className="text-2xl font-bold text-foreground">Drop to Index</h2>
+                <p className="text-txt-3 mt-2">Files will be added to your global knowledge base</p>
               </div>
 
-              {/* Toolbar */}
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1 max-w-md group">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-white/20 group-focus-within:text-primary/60 transition-colors" />
-                  <Input 
-                    placeholder="Search knowledge base..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-10 bg-white/[0.02] border-white/5 text-[14px] text-white/80 focus-visible:ring-primary/20 rounded-xl"
-                  />
-                </div>
-              </div>
-
-              {/* Knowledge Table */}
-              <Card className="rounded-2xl border-white/5 bg-white/[0.01] overflow-hidden shadow-2xl">
-                {isLoading ? (
-                  <div className="flex flex-col items-center justify-center py-20 gap-3 opacity-40">
-                    <Loader2 className="size-8 animate-spin text-primary" />
-                    <span className="text-[13px] font-medium">Synchronizing context...</span>
-                  </div>
-                ) : filteredFiles.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-24 text-center">
-                    <div className="size-12 rounded-2xl bg-white/5 flex items-center justify-center mb-4 opacity-40 border border-white/10">
-                      <FileCode className="size-6 text-white" />
+              {activeTab === "Knowledge Index" ? (
+                <div className="px-7 py-6">
+                  {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-20 gap-4 opacity-40">
+                      <Loader2 className="size-8 animate-spin text-primary" />
+                      <span className="text-[14px] font-medium tracking-tight">Accessing local context engine...</span>
                     </div>
-                    <h4 className="text-[15px] font-medium text-white/60">No knowledge sources found</h4>
-                    <p className="text-[12px] text-white/30 mt-1 max-w-[280px]">
-                      Search terms didn&apos;t match anything or index is currently empty.
-                    </p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader className="bg-white/[0.02]">
-                      <TableRow className="border-white/5 hover:bg-transparent">
-                        <TableHead className="text-white/40 font-semibold h-11">Name</TableHead>
-                        <TableHead className="text-white/40 font-semibold h-11 w-[120px]">Format</TableHead>
-                        <TableHead className="text-white/40 font-semibold h-11 w-[120px]">Size</TableHead>
-                        <TableHead className="text-white/40 font-semibold h-11 w-[180px]">Indexed At</TableHead>
-                        <TableHead className="text-white/40 font-semibold h-11 w-[80px] text-right"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                  ) : filteredFiles.length === 0 ? (
+                    <div 
+                      className="flex flex-col items-center justify-center py-20 text-center rounded-[2.5rem] bg-surface-1/30 border-2 border-dashed border-border/40"
+                      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    >
+                      <div className="size-20 rounded-[2.5rem] bg-surface-2 flex items-center justify-center mb-6 border border-border shadow-xl">
+                        <Upload className="size-8 text-txt-4" />
+                      </div>
+                      <h4 className="text-[20px] font-bold text-foreground mb-2">Build your Agent&apos;s Brain</h4>
+                      <p className="text-[14px] text-txt-3 mt-1 max-w-[360px] leading-relaxed mb-10">
+                        Drag and drop documentation or code here to create a shared intelligence layer for all your agents.
+                      </p>
+                      <Button 
+                        onClick={handleBrowse}
+                        className="h-10 px-8 rounded-full font-bold bg-primary text-black hover:bg-primary/90 shadow-lg shadow-primary/10"
+                      >
+                         Browse Files
+                      </Button>
+                    </div>
+                  ) : viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0 border-t border-l border-white/5 bg-white/[0.02]">
                       {filteredFiles.map((file) => (
-                        <TableRow key={file.id} className="border-white/5 hover:bg-white/[0.02] transition-colors group">
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <div className="size-9 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center transition-colors group-hover:bg-primary/10 group-hover:border-primary/20">
-                                <FileText className="size-4 text-white/30 group-hover:text-primary transition-colors" />
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-[14px] font-medium text-white/90 group-hover:text-white transition-colors">{file.name}</span>
-                                <span className="text-[11px] text-white/20 font-mono tracking-tighter">ID: {file.id.slice(0, 8)}</span>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                               <div className="px-1.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-[10px] font-mono text-white/40 uppercase">
-                                  {file.extension}
-                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-[12px] text-white/50 font-mono">{formatSize(file.size)}</span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-[12px] text-white/30">{new Date(file.updatedAt).toLocaleDateString()} at {new Date(file.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="size-8 p-0 text-white/20 hover:text-white hover:bg-white/10">
-                                  <MoreHorizontal className="size-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48 bg-[#1a1a1a] border-white/10 text-white/70">
-                                <DropdownMenuItem className="gap-2 cursor-pointer focus:bg-white/5">
-                                  <ExternalLink className="size-3.5" />
-                                  Open File Location
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="gap-2 cursor-pointer focus:bg-white/5">
-                                  <Info className="size-3.5" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => removeFile(file.name)}
-                                  className="text-agent-red focus:text-agent-red focus:bg-agent-red/10 gap-2 cursor-pointer"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                  Delete Index
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
+                        <KnowledgeCard 
+                          key={file.id} 
+                          file={file}
+                          onRemove={removeFile}
+                        />
                       ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </Card>
-
-              {/* Info Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-4">
-                   <div className="size-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                      <ShieldCheck className="size-5 text-primary" />
+                    </div>
+                  ) : (
+                    /* LIST VIEW - Refined to match Skills style if needed, but Skills uses grid for Discover */
+                    <Card className="rounded-xl border-border/40 bg-surface-1/30 overflow-hidden shadow-sm">
+                      <Table>
+                        <TableHeader className="bg-surface-2/40">
+                          <TableRow className="border-border/40 hover:bg-transparent h-10">
+                            <TableHead className="text-txt-4 font-bold text-[10px] uppercase tracking-wider pl-6">Knowledge Node</TableHead>
+                            <TableHead className="text-txt-4 font-bold text-[10px] uppercase tracking-wider w-[100px]">Format</TableHead>
+                            <TableHead className="text-txt-4 font-bold text-[10px] uppercase tracking-wider w-[100px]">Payload</TableHead>
+                            <TableHead className="text-txt-4 font-bold text-[10px] uppercase tracking-wider w-[140px]">Created</TableHead>
+                            <TableHead className="text-txt-4 font-bold text-[10px] uppercase tracking-wider w-[60px] text-right pr-6"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredFiles.map((file) => (
+                            <TableRow key={file.id} className="border-border/40 hover:bg-primary/[0.02] transition-all group h-14 cursor-default">
+                              <TableCell className="pl-6">
+                                <div className="flex items-center gap-3">
+                                  <div className="size-8 rounded-lg bg-surface-2 border border-border/60 flex items-center justify-center transition-all group-hover:bg-primary/10 group-hover:border-primary/20 shadow-sm">
+                                    {getFileIcon(file.extension)}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[13px] font-bold text-foreground group-hover:text-primary transition-colors leading-none">{file.name}</span>
+                                    <span className="text-[9px] text-txt-4 font-mono tracking-tighter mt-1 opacity-60">CRC32: {file.id.slice(0, 10)}</span>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                 <Badge variant="outline" className="rounded bg-surface-3 border-border/60 text-[9px] font-bold text-txt-3 uppercase px-1.5 h-4">
+                                    {file.extension}
+                                 </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-[12px] text-foreground/70 font-mono font-medium">{formatSize(file.size)}</span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-[12px] text-txt-3">{new Date(file.updatedAt).toLocaleDateString()}</span>
+                              </TableCell>
+                              <TableCell className="text-right pr-6">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger 
+                                    className="inline-flex items-center justify-center size-7 p-0 text-txt-4 hover:text-foreground hover:bg-surface-2 transition-all opacity-0 group-hover:opacity-100 rounded-md"
+                                  >
+                                    <MoreHorizontal className="size-4" />
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48 bg-surface-1 border-border/60 text-txt-2 shadow-2xl p-1 rounded-xl backdrop-blur-xl">
+                                    <DropdownMenuItem className="gap-2.5 cursor-pointer py-2 rounded-lg text-[12px] font-medium">
+                                      Open Folder
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem 
+                                      onClick={() => removeFile(file.name)}
+                                      className="text-agent-red focus:text-agent-red focus:bg-agent-red/10 gap-2.5 cursor-pointer py-2 rounded-lg text-[12px] font-bold"
+                                    >
+                                      Unindex Node
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </Card>
+                  )}
+                </div>
+              ) : (
+                /* Configuration Tab remains refined but similar */
+                <div className="flex flex-col items-center justify-center h-full text-center p-20 animate-in fade-in zoom-in-95 duration-500">
+                   <div className="size-24 rounded-[3rem] bg-surface-1 border border-border/60 flex items-center justify-center mb-8 shadow-2xl overflow-hidden relative group">
+                      <div className="absolute inset-0 bg-primary/10 animate-pulse group-hover:bg-primary/20 transition-colors" />
+                      <BrainCircuit className="size-12 text-primary/60 relative z-10" />
                    </div>
-                   <div>
-                      <h4 className="text-[15px] font-semibold text-white/90 mb-1">Local & Private</h4>
-                      <p className="text-[12px] text-white/30 leading-relaxed">
-                         Your global knowledge files are stored only on this device. They are not uploaded to our servers. Brane Hub encrypts access to this context.
-                      </p>
+                   <h3 className="text-[24px] font-bold text-foreground mb-3 tracking-tight">Knowledge Engine Config</h3>
+                   <p className="text-[15px] text-txt-3 max-w-[400px] leading-relaxed mb-10 opacity-70">
+                      We are architecting advanced embedding strategies, RAG optimizations, and custom vector search parameters for the next iteration of the knowledge server.
+                   </p>
+                   <div className="flex items-center gap-3">
+                      <Button variant="outline" className="rounded-full px-8 h-11 border-border/60 text-txt-3 font-bold hover:bg-surface-2">
+                        View Documentation
+                      </Button>
+                      <Button variant="secondary" className="rounded-full px-8 h-11 font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 transition-all shadow-xl shadow-primary/10">
+                        Coming in v0.2.0
+                      </Button>
                    </div>
                 </div>
-                <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 flex items-start gap-4">
-                   <div className="size-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center shrink-0">
-                      <FileCode className="size-5 text-white/40" />
-                   </div>
-                   <div>
-                      <h4 className="text-[15px] font-semibold text-white/90 mb-1">Agent Accessibility</h4>
-                      <p className="text-[12px] text-white/30 leading-relaxed">
-                         Agents use the internal &apos;brane-knowledge&apos; MCP server to fetch relevant snippets from these files as needed during task execution.
-                      </p>
-                   </div>
-                </div>
-              </div>
-
+              )}
             </div>
           </div>
 

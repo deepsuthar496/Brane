@@ -8,7 +8,14 @@
     }
   },
   "installed": {
-    "skills": {},
+    "skills": {
+      "deploy-to-vercel": {
+        "version": "3.0.0",
+        "installedAt": "2026-04-12T07:07:15.196Z",
+        "path": "registry/skills/vercel/deploy-to-vercel/SKILL.md",
+        "enabled": true
+      }
+    },
     "mcps": {
       "supabase": {
         "version": "1.0.0",

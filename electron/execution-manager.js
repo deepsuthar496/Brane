@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { spawn } = require("child_process");
+const { injectKnowledgeMcp } = require("./auto-injector");
 
 const runningAgents = new Map();
 
@@ -35,6 +36,13 @@ async function installCLI(event, { command, id }) {
 async function startAgent(event, { id, command }) {
   if (runningAgents.has(id)) {
     return { success: false, error: "Agent is already running" };
+  }
+
+  // Auto-inject knowledge context if files exist
+  try {
+    await injectKnowledgeMcp();
+  } catch (err) {
+    console.error("Execution: Knowledge injection failed", err.message);
   }
 
   const webContents = event.sender;

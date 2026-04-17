@@ -59,15 +59,28 @@ async function callTool(name, args) {
     case "search_knowledge": {
       const files = await listFiles();
       const results = [];
+      const query = args.query.toLowerCase();
+      
       for (const file of files) {
-        const content = await getFileContent(file.name);
-        if (content.toLowerCase().includes(args.query.toLowerCase())) {
-          // Simple implementation: return file names with matches
-          results.push({ name: file.name, size: file.size });
+        try {
+          const content = await getFileContent(file.name);
+          if (content.toLowerCase().includes(query)) {
+            results.push({ name: file.name, size: file.size, lastModified: file.updatedAt });
+          }
+        } catch (e) {
+          // Skip files that can't be read (e.g. binary)
+          process.stderr.write(`[Search Error] Could not read ${file.name}: ${e.message}\n`);
         }
       }
+      
+      if (results.length === 0) {
+        return {
+          content: [{ type: "text", text: `No matches found for "${args.query}".` }]
+        };
+      }
+
       return {
-        content: [{ type: "text", text: `Found ${results.length} matches:\n${JSON.stringify(results, null, 2)}` }]
+        content: [{ type: "text", text: `Found ${results.length} matches for "${args.query}":\n${JSON.stringify(results, null, 2)}` }]
       };
     }
     default:

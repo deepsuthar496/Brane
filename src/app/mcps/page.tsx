@@ -64,17 +64,18 @@ export default function MCPPage() {
   const loadServers = useCallback(async () => {
     if (typeof window !== "undefined" && window.electronAPI) {
       const realServers = await window.electronAPI.getMcpServers();
-      setServers((realServers || []).map((s: MCPServer) => ({
+      setServers((realServers || []).map((s: MCPServer & { isBuiltIn?: boolean, disabled?: boolean }) => ({
         id: s.id,
-        name: s.id,
+        name: s.name || s.id,
         icon: s.url ? "🌐" : "⚙️",
         command: s.command,
         args: s.args,
         url: s.url,
         scope: "gemini",
-        enabled: !s.disabled,
-        category: s.url ? "GOOGLE" : "SYSTEM"
-      } as MCPServer)));
+        enabled: s.enabled !== undefined ? s.enabled : !s.disabled,
+        category: s.isBuiltIn ? "SYSTEM" : (s.url ? "GOOGLE" : "SYSTEM"),
+        isBuiltIn: s.isBuiltIn
+      } as any)));
       
       const installed = await window.electronAPI.getInstalledMcps();
       setInstalledMcps(installed || {});
@@ -341,9 +342,11 @@ export default function MCPPage() {
                                       checked={server.enabled} 
                                       onCheckedChange={(val) => handleToggle(server.id, val)}
                                     />
-                                    <button onClick={() => handleRemove(server.id)} className="p-1.5 text-txt-3 hover:text-agent-red opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <Trash2 className="size-3.5" />
-                                    </button>
+                                    {!(server as any).isBuiltIn && (
+                                      <button onClick={() => handleRemove(server.id)} className="p-1.5 text-txt-3 hover:text-agent-red opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Trash2 className="size-3.5" />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               ))

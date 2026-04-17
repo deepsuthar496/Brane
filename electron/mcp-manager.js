@@ -24,12 +24,42 @@ async function writeSettings(settings) {
 
 async function getMcpServers() {
   const settings = await readSettings();
-  const servers = settings.mcpServers || {};
+  if (!settings.mcpServers) settings.mcpServers = {};
+  
+  let needsSave = false;
+  const builtInPath = path.join(__dirname, "knowledge-mcp-server-entry.js");
+  
+  if (!settings.mcpServers["brane-knowledge"]) {
+    settings.mcpServers["brane-knowledge"] = {
+      type: "stdio",
+      command: "node",
+      args: [builtInPath],
+      env: {}
+    };
+    needsSave = true;
+  } else if (settings.mcpServers["brane-knowledge"].name || settings.mcpServers["brane-knowledge"].isBuiltIn || !settings.mcpServers["brane-knowledge"].type) {
+    // Upgrade existing config to new standard
+    settings.mcpServers["brane-knowledge"] = {
+      type: "stdio",
+      command: "node",
+      args: [builtInPath],
+      env: settings.mcpServers["brane-knowledge"].env || {}
+    };
+    needsSave = true;
+  }
+
+  if (needsSave) {
+    await writeSettings(settings);
+  }
+
+  const servers = settings.mcpServers;
   // Transform into a frontend-friendly array
   return Object.entries(servers).map(([id, config]) => ({
     id,
-    name: id,
-    enabled: true, // Gemini CLI doesn't have an 'enabled' flag per server yet, but we'll manage it
+    name: config.name || (id === "brane-knowledge" ? "Brane Knowledge MCP" : id),
+    enabled: config.disabled !== true,
+    isBuiltIn: id === "brane-knowledge" || config.isBuiltIn === true,
+    description: config.description || (id === "brane-knowledge" ? "Built-in MCP server for the Global Knowledge Base." : ""),
     ...config
   }));
 }
@@ -60,10 +90,22 @@ async function removeMcpServer(id) {
 // if the CLI ignores unknown properties.
 async function toggleMcpServer(id, enabled) {
     const settings = await readSettings();
-    if (!settings.mcpServers || !settings.mcpServers[id]) return false;
+    if (!settings.mcpServers) settings.mcpServers = {};
     
-    // For now, let's use a custom property and hope the CLI ignores it.
-    // If the CLI crashes, we will have to move it to a different key.
+    if (!settings.mcpServers[id]) {
+      if (id === "brane-knowledge") {
+        const builtInPath = path.join(__dirname, "knowledge-mcp-server-entry.js");
+        settings.mcpServers[id] = {
+          type: "stdio",
+          command: "node",
+          args: [builtInPath],
+          env: {}
+        };
+      } else {
+        return false;
+      }
+    }
+    
     settings.mcpServers[id].disabled = !enabled;
     await writeSettings(settings);
     return true;

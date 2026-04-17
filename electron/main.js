@@ -1,5 +1,14 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+
+// ... (previous code)
+
+ipcMain.handle("browse-files", async (event, options) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  return await dialog.showOpenDialog(win, options || {
+    properties: ["openFile", "multiSelections"]
+  });
+});
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
 const log = require("electron-log");

@@ -84,6 +84,28 @@ export function KnowledgeDropzone() {
     }
   };
 
+  const handleBrowse = async () => {
+    if (typeof window === "undefined" || !window.electronAPI) return;
+    try {
+      const result = await window.electronAPI.browseFiles({
+        properties: ["openFile", "multiSelections"]
+      });
+
+      if (result.canceled) return;
+
+      setIsUploading(true);
+      for (const filePath of result.filePaths) {
+        await window.electronAPI.addKnowledgeFileFromPath(filePath);
+      }
+      toast.success(`Added ${result.filePaths.length} knowledge source(s)`);
+      loadFiles();
+    } catch (error) {
+      toast.error("Failed to add files");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const removeFile = async (name: string) => {
     try {
       await window.electronAPI.removeKnowledgeFile(name);
@@ -114,9 +136,18 @@ export function KnowledgeDropzone() {
 
       {/* Dropzone Area */}
       <div
+        role="button"
+        tabIndex={0}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
+        onClick={handleBrowse}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleBrowse();
+          }
+        }}
         className={cn(
           "relative group mx-1.5 mb-3 rounded-lg border border-dashed transition-all duration-200 flex flex-col items-center justify-center py-4 px-3 cursor-pointer",
           isDragging 
@@ -157,10 +188,10 @@ export function KnowledgeDropzone() {
               </div>
             </div>
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="size-6 flex items-center justify-center text-white/10 hover:text-white/40 rounded transition-colors opacity-0 group-hover:opacity-100">
-                  <MoreHorizontal className="size-3.5" />
-                </button>
+              <DropdownMenuTrigger 
+                className="size-6 flex items-center justify-center text-white/10 hover:text-white/40 rounded transition-colors opacity-0 group-hover:opacity-100"
+              >
+                <MoreHorizontal className="size-3.5" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-32 bg-[#1a1a1a] border-white/10 text-white/70">
                 <DropdownMenuItem 

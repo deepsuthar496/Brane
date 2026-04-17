@@ -11,6 +11,7 @@ export interface ElectronAPI {
   minimize: () => void;
   maximize: () => void;
   close: () => void;
+  browseFiles: (options?: any) => Promise<{ canceled: boolean; filePaths: string[] }>;
 
   // Logs
   getLogs: () => Promise<LogEntry[]>;
