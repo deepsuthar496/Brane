@@ -3,6 +3,8 @@ const path = require("path");
 const os = require("os");
 const { listFiles } = require("./knowledge-manager");
 
+const mcpManager = require("./mcp-manager");
+
 /**
  * Handles automatic injection of the Brane Knowledge MCP server
  * into various agent configuration files.
@@ -13,6 +15,13 @@ const CLAUDE_CONFIG_PATH = path.join(os.homedir(), ".claude.json");
 const CLAUDE_ALT_CONFIG_PATH = path.join(os.homedir(), ".claude", "mcp.json");
 
 async function injectKnowledgeMcp() {
+  // Trigger cleanup/migration of Gemini settings.json
+  try {
+    await mcpManager.getMcpServers();
+  } catch (err) {
+    console.error("Auto-injector: Gemini config cleanup failed:", err.message);
+  }
+
   const files = await listFiles();
   if (files.length === 0) return; // Don't inject if no files exist
 
