@@ -1,0 +1,10 @@
+APP_PLAN.md
+DESIGN_SYSTEM.md
+powerplan.md
+PROGRESS.md
+README.md
+public\file.svg
+public\globe.svg
+public\next.svg
+public\vercel.svg
+public\window.svg

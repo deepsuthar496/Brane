@@ -44,3 +44,5 @@ next-env.d.ts
 *.deb
 *.rpm
 *.zip
+
+graphify-out/cache/

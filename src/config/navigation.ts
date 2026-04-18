@@ -24,6 +24,7 @@ export const mainNav: NavItem[] = [
   { label: "Agents", icon: Monitor, href: "/", badge: "6" },
   { label: "Agent Store", icon: ShoppingBag, href: "/store" },
   { label: "Knowledge", icon: BrainCircuit, href: "/knowledge" },
+  { label: "Usage", icon: Activity, href: "/usage" },
   { label: "MCP Servers", icon: Link2, href: "/mcps", badge: "8" },
   { label: "Skills", icon: Star, href: "/skills", badge: "12" },
   { label: "Credentials", icon: Lock, href: "/credentials", hasNotif: true },
