@@ -44,6 +44,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   restartAndInstall: () => ipcRenderer.send("restart-and-install"),
   
   // BraneZO Agent
+  readFileTree: (workspacePath) => ipcRenderer.invoke("branezo:read-file-tree", workspacePath),
   startBraneZOChat: (payload) => ipcRenderer.send("branezo:start-chat", payload),
   abortBraneZOChat: (id) => ipcRenderer.send("branezo:abort-chat", id),
   onBraneZOChunk: (id, callback) => {

@@ -55,6 +55,7 @@ export interface ElectronAPI {
   onUpdateError: (callback: (message: string) => void) => () => void;
 
   // BraneZO Agent
+  readFileTree: (workspacePath: string) => Promise<any[]>;
   startBraneZOChat: (payload: {
     id: string;
     messages: { role: string; content: string }[];

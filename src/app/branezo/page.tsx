@@ -8,7 +8,7 @@ import { FilesPanel } from "@/components/branezo/files-panel";
 import { cn } from "@/lib/utils";
 import type { ChatMessage, FileChange, FileTreeNode } from "@/components/branezo/types";
 import { MOCK_FILE_CHANGES, MOCK_FILE_TREE, SUGGESTED_PROMPTS } from "@/components/branezo/mock-data";
-import { GripVertical } from "lucide-react";
+import { GripVertical, FolderOpen, Bot } from "lucide-react";
 import { useChatStore } from "@/store/chat-store";
 
 // ── BraneZO Page ──────────────────────────────────────
@@ -22,17 +22,38 @@ export default function BraneZOPage() {
     setThinking, 
     tokensUsed, 
     cost, 
-    currentSessionId 
+    currentSessionId,
+    workspacePath,
+    setWorkspacePath
   } = useChatStore();
 
   const [files] = useState<FileChange[]>(MOCK_FILE_CHANGES); // Kept mocked for now until real fs watcher
-  const [fileTree] = useState<FileTreeNode[]>(MOCK_FILE_TREE);
+  const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
   const [model, setModel] = useState("openai:gpt-4-turbo");
 
   // Resizable panels
   const [splitPercent, setSplitPercent] = useState(42);
   const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleSelectWorkspace = async () => {
+    if (!window.electronAPI) return;
+    const result = await window.electronAPI.browseFiles({
+      properties: ['openDirectory']
+    });
+    if (!result.canceled && result.filePaths.length > 0) {
+      setWorkspacePath(result.filePaths[0]);
+    }
+  };
+
+  useEffect(() => {
+    if (!workspacePath || !window.electronAPI) return;
+    
+    // Load actual file tree when workspace changes
+    window.electronAPI.readFileTree(workspacePath).then(tree => {
+      if (tree) setFileTree(tree);
+    });
+  }, [workspacePath]);
 
   useEffect(() => {
     // Listen for agent streaming responses
@@ -130,6 +151,8 @@ export default function BraneZOPage() {
 
   const handleSendMessage = useCallback(
     (content: string) => {
+      if (!workspacePath) return;
+
       const userMsg: ChatMessage = {
         id: `msg-${Date.now()}`,
         role: "user",
@@ -157,7 +180,7 @@ export default function BraneZOPage() {
               role: m.role,
               content: m.content
             })),
-          workspacePath: "C:/Users/Admin/Documents/projects/branemerge/Brane", // hardcoded temporarily
+          workspacePath: workspacePath,
           providerId: providerId,
           modelId: modelId,
           apiKey: apiKey
@@ -166,7 +189,7 @@ export default function BraneZOPage() {
         setThinking(false); // Can't send if no electron
       }
     },
-    [messages, model, currentSessionId]
+    [messages, model, currentSessionId, workspacePath]
   );
 
   // ── Drag Resize Logic ─────────────────────────
@@ -208,50 +231,77 @@ export default function BraneZOPage() {
           ref={containerRef}
           className="flex-1 flex overflow-hidden bg-background"
         >
-          {/* ── Chat Panel ─────────────────────── */}
-          <div
-            className="overflow-hidden flex flex-col border-r border-border/30"
-            style={{ width: `${splitPercent}%` }}
-          >
-            <ChatPanel
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isThinking={isThinking}
-              onStop={() => {
-                if (window.electronAPI) {
-                  window.electronAPI.abortBraneZOChat(currentSessionId);
-                }
-                setThinking(false);
-              }}
-              model={model}
-              onModelChange={setModel}
-              tokensUsed={tokensUsed}
-              cost={cost}
-              suggestions={SUGGESTED_PROMPTS}
-              sessionTitle="Dark mode toggle implementation"
-            />
-          </div>
-
-          {/* ── Drag Handle ────────────────────── */}
-          <div
-            onMouseDown={handleMouseDown}
-            className={cn(
-              "w-[5px] shrink-0 cursor-col-resize flex items-center justify-center group transition-colors relative z-10",
-              "hover:bg-primary/10 active:bg-primary/20"
-            )}
-          >
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-              <GripVertical className="size-3 text-txt-4" />
+          {!workspacePath ? (
+            <div className="flex-1 flex items-center justify-center p-8 text-center bg-surface-2/20">
+               <div className="flex flex-col items-center max-w-sm">
+                  <div className="size-20 rounded-3xl bg-gradient-to-br from-primary/20 to-purple-500/20 border border-primary/20 flex items-center justify-center mb-6 shadow-xl shadow-primary/5">
+                     <Bot className="size-10 text-primary" />
+                  </div>
+                  <h2 className="text-xl font-bold text-foreground mb-3">Welcome to BraneZO</h2>
+                  <p className="text-sm text-txt-3 mb-8 leading-relaxed">
+                     Your autonomous coding agent is ready. To get started, select a folder on your computer that you want the agent to work on.
+                  </p>
+                  <button
+                     onClick={handleSelectWorkspace}
+                     className="flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-all shadow-md shadow-primary/20"
+                  >
+                     <FolderOpen className="size-4" />
+                     Select Workspace Folder
+                  </button>
+               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* ── Chat Panel ─────────────────────── */}
+              <div
+                className="overflow-hidden flex flex-col border-r border-border/30"
+                style={{ width: `${splitPercent}%` }}
+              >
+                <ChatPanel
+                  messages={messages}
+                  onSendMessage={handleSendMessage}
+                  isThinking={isThinking}
+                  onStop={() => {
+                    if (window.electronAPI) {
+                      window.electronAPI.abortBraneZOChat(currentSessionId);
+                    }
+                    setThinking(false);
+                  }}
+                  model={model}
+                  onModelChange={setModel}
+                  tokensUsed={tokensUsed}
+                  cost={cost}
+                  suggestions={SUGGESTED_PROMPTS}
+                  sessionTitle={workspacePath.split(/[\/\\]/).pop() || "BraneZO"}
+                />
+              </div>
 
-          {/* ── Files Panel ────────────────────── */}
-          <div
-            className="overflow-hidden flex flex-col"
-            style={{ width: `${100 - splitPercent}%` }}
-          >
-            <FilesPanel files={files} fileTree={fileTree} />
-          </div>
+              {/* ── Drag Handle ────────────────────── */}
+              <div
+                onMouseDown={handleMouseDown}
+                className={cn(
+                  "w-[5px] shrink-0 cursor-col-resize flex items-center justify-center group transition-colors relative z-10",
+                  "hover:bg-primary/10 active:bg-primary/20"
+                )}
+              >
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <GripVertical className="size-3 text-txt-4" />
+                </div>
+              </div>
+
+              {/* ── Files Panel ────────────────────── */}
+              <div
+                className="overflow-hidden flex flex-col relative"
+                style={{ width: `${100 - splitPercent}%` }}
+              >
+                <div className="absolute top-3 left-4 z-10 text-xs font-medium text-txt-3 bg-background/80 backdrop-blur-sm px-2 py-0.5 rounded-full border border-border/40 truncate max-w-[80%] flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors shadow-sm" onClick={handleSelectWorkspace} title="Click to change workspace">
+                   <FolderOpen className="size-3" />
+                   {workspacePath}
+                </div>
+                <FilesPanel files={files} fileTree={fileTree} />
+              </div>
+            </>
+          )}
         </main>
       </div>
     </div>

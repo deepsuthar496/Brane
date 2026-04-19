@@ -25,6 +25,7 @@ const registryManager = require("./registry-manager");
 const credentialsManager = require("./credentials-manager");
 const logsManager = require("./logs-manager");
 const knowledgeManager = require("./knowledge-manager");
+const filesManager = require("./files-manager");
 const { installCLI, startAgent, stopAgent, getAgentStatus } = require("./execution-manager");
 const agentSession = require("./agent/session");
 const modelsRegistry = require("./models-registry");
@@ -227,6 +228,10 @@ ipcMain.on("branezo:start-chat", async (event, payload) => {
 
 ipcMain.on("branezo:abort-chat", (event, id) => {
   agentSession.abortChat(id);
+});
+
+ipcMain.handle("branezo:read-file-tree", async (event, workspacePath) => {
+  return await filesManager.readFileTree(workspacePath);
 });
 
 // Auto-update IPC handlers
