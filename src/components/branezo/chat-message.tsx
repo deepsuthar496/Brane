@@ -113,6 +113,7 @@ function InlineCode({ children }: { children: string }) {
 // ── Markdown-ish Renderer ─────────────────────────────
 
 function renderContent(content: string) {
+  if (!content) return null;
   const parts = content.split(/(`[^`]+`)/g);
 
   return parts.map((part, i) => {
@@ -185,7 +186,7 @@ interface ChatMessageProps {
 
 export function ChatMessageComponent({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
-  const timeStr = message.timestamp.toLocaleTimeString([], {
+  const timeStr = new Date(message.timestamp).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -247,13 +248,22 @@ export function ChatMessageComponent({ message }: ChatMessageProps) {
           )}
         >
           {/* Text */}
-          <div className="text-[13px] leading-[1.7] text-txt-1 whitespace-pre-wrap">
-            {renderContent(message.content)}
-          </div>
+          {message.content && (
+            <div className="text-[13px] leading-[1.7] text-txt-1 whitespace-pre-wrap">
+              {renderContent(message.content)}
+            </div>
+          )}
+
+          {/* Fallback Loader for Tool Streaming gaps */}
+          {!message.content && (!message.toolUse || message.toolUse.length === 0) && (
+            <div className="opacity-70 scale-90 -ml-2 -my-2">
+              <ThinkingIndicator />
+            </div>
+          )}
 
           {/* Tool Use Blocks */}
           {message.toolUse && message.toolUse.length > 0 && (
-            <div className="mt-3 space-y-1.5">
+            <div className={cn("space-y-1.5", message.content && "mt-3")}>
               {message.toolUse.map((tool) => (
                 <ToolUseCard key={tool.id} tool={tool} />
               ))}

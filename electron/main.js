@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+require("dotenv").config();
 const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 
 // ... (previous code)
@@ -25,6 +26,8 @@ const credentialsManager = require("./credentials-manager");
 const logsManager = require("./logs-manager");
 const knowledgeManager = require("./knowledge-manager");
 const { installCLI, startAgent, stopAgent, getAgentStatus } = require("./execution-manager");
+const agentSession = require("./agent/session");
+const modelsRegistry = require("./models-registry");
 
 const isDev = !app.isPackaged;
 
@@ -149,6 +152,22 @@ ipcMain.handle("credentials:delete", async (event, key) => {
   return await credentialsManager.deleteCredential(key);
 });
 
+ipcMain.handle("branezo:get-all-credentials", async () => {
+  return await credentialsManager.getAllCredentials();
+});
+
+ipcMain.handle("branezo:save-credential", async (event, key, value) => {
+  return await credentialsManager.saveCredential(key, value);
+});
+
+ipcMain.handle("branezo:delete-credential", async (event, key) => {
+  return await credentialsManager.deleteCredential(key);
+});
+
+ipcMain.handle("branezo:get-models-registry", async () => {
+  return await modelsRegistry.getRegistry();
+});
+
 ipcMain.handle("credentials:getGithubToken", async () => {
   return await credentialsManager.getGithubToken();
 });
@@ -184,6 +203,30 @@ ipcMain.handle("knowledge:removeFile", async (event, name) => {
 
 ipcMain.handle("knowledge:getPath", () => {
   return knowledgeManager.KNOWLEDGE_DIR;
+});
+
+// BraneZO AI Agent IPC handlers
+ipcMain.on("branezo:start-chat", async (event, payload) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  
+  const onChunk = (text) => win.webContents.send(`branezo:chunk:${payload.id}`, text);
+  const onToolCall = (call) => win.webContents.send(`branezo:tool-call:${payload.id}`, call);
+  const onToolResult = (res) => win.webContents.send(`branezo:tool-result:${payload.id}`, res);
+  const onFinish = (messages) => win.webContents.send(`branezo:finish:${payload.id}`, messages);
+  const onError = (err) => win.webContents.send(`branezo:error:${payload.id}`, err.message || String(err));
+  
+  await agentSession.startChat(
+    payload,
+    onChunk,
+    onToolCall,
+    onToolResult,
+    onFinish,
+    onError
+  );
+});
+
+ipcMain.on("branezo:abort-chat", (event, id) => {
+  agentSession.abortChat(id);
 });
 
 // Auto-update IPC handlers

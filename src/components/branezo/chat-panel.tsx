@@ -18,6 +18,7 @@ interface ChatPanelProps {
   cost: number;
   suggestions?: string[];
   sessionTitle: string;
+  onStop?: () => void;
 }
 
 export function ChatPanel({
@@ -30,6 +31,7 @@ export function ChatPanel({
   cost,
   suggestions = [],
   sessionTitle,
+  onStop,
 }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -113,6 +115,7 @@ export function ChatPanel({
         suggestions={messages.length > 0 ? suggestions : []}
         model={model}
         onModelChange={onModelChange}
+        onStop={onStop}
       />
     </div>
   );

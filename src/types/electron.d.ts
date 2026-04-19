@@ -34,6 +34,7 @@ export interface ElectronAPI {
   getAllCredentials: () => Promise<any[]>;
   saveCredential: (key: string, value: string) => Promise<boolean>;
   deleteCredential: (key: string) => Promise<boolean>;
+  getModelsRegistry: () => Promise<any>;
   getGithubToken: () => Promise<string | null>;
   setGithubToken: (token: string) => Promise<boolean>;
   getRegistryRepo: () => Promise<string>;
@@ -52,6 +53,24 @@ export interface ElectronAPI {
   onUpdateDownloadProgress: (callback: (percent: number) => void) => () => void;
   onUpdateDownloaded: (callback: (info: any) => void) => () => void;
   onUpdateError: (callback: (message: string) => void) => () => void;
+
+  // BraneZO Agent
+  startBraneZOChat: (payload: {
+    id: string;
+    messages: { role: string; content: string }[];
+    workspacePath: string;
+    providerId: string;
+    modelId: string;
+    apiKey: string;
+    systemPrompt?: string;
+  }) => void;
+  abortBraneZOChat: (id: string) => void;
+  onBraneZOChunk: (id: string, callback: (text: string) => void) => () => void;
+  onBraneZOToolCall: (id: string, callback: (call: any) => void) => () => void;
+  onBraneZOToolResult: (id: string, callback: (res: any) => void) => () => void;
+  onBraneZOFinish: (id: string, callback: (messages: any[]) => void) => () => void;
+  onBraneZOError: (id: string, callback: (err: string) => void) => () => void;
+  onBraneZOError: (id: string, callback: (error: string) => void) => () => void;
 
   // Knowledge Base
   listKnowledgeFiles: () => Promise<any[]>;

@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { 
   Plus, Copy, Pencil, Trash2, Search, ExternalLink, ShieldCheck, 
-  ShieldAlert, ShieldX, Eye, EyeOff, MoreVertical, Loader2
+  ShieldAlert, ShieldX, Eye, EyeOff, MoreVertical, Loader2, Bot
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/layout/page-header";
@@ -396,16 +396,44 @@ export default function CredentialsPage() {
               </Table>
             </div>
 
-            <div className="mt-6 p-4 rounded-xl bg-muted/30 border border-border border-dashed flex items-start gap-4">
-              <div className="size-8 rounded-full bg-background border border-border flex items-center justify-center shrink-0">
-                <ExternalLink className="size-4 text-primary" />
+            <div className="mt-6 p-4 rounded-xl bg-muted/30 border border-border border-dashed flex flex-col items-start gap-4">
+              <div className="flex gap-4">
+                <div className="size-8 rounded-full bg-background border border-border flex items-center justify-center shrink-0">
+                  <ExternalLink className="size-4 text-primary" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <h4 className="text-[13px] font-semibold">Security Note</h4>
+                  <p className="text-[12px] text-muted-foreground leading-relaxed">
+                    Your API keys are stored in the system's native keychain (macOS Keychain, Windows Credential Manager, or gnome-keyring). 
+                    They are never stored in plain text on your hard drive.
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <h4 className="text-[13px] font-semibold">Security Note</h4>
-                <p className="text-[12px] text-muted-foreground leading-relaxed">
-                  Your API keys are stored in the system's native keychain (macOS Keychain, Windows Credential Manager, or gnome-keyring). 
-                  They are never stored in plain text on your hard drive.
-                </p>
+              <div className="flex gap-4 border-t border-border/50 pt-4 w-full">
+                <div className="size-8 rounded-full bg-agent-green-dim border border-primary/20 flex items-center justify-center shrink-0">
+                  <Bot className="size-4 text-primary" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <h4 className="text-[13px] font-semibold">Supported API Keys & Providers</h4>
+                  <p className="text-[12px] text-muted-foreground leading-relaxed">
+                    Set these standard Variable Names to utilize their respective models in BraneZO: <br/>
+                    • <strong>OPENAI_API_KEY</strong> (for GPT-4o)<br/>
+                    • <strong>ANTHROPIC_API_KEY</strong> (for Claude 3.5)<br/>
+                    • <strong>GOOGLE_API_KEY</strong> (for Gemini 1.5 Pro)<br/>
+                    • <strong>OPENROUTER_API_KEY</strong> (for OpenRouter proxies)<br/>
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4 border-t border-border/50 pt-4 w-full">
+                <div className="size-8 rounded-full bg-agent-green-dim border border-primary/20 flex items-center justify-center shrink-0">
+                  <Bot className="size-4 text-primary" />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <h4 className="text-[13px] font-semibold">Local / OpenAI Compatible Proxies</h4>
+                  <p className="text-[12px] text-muted-foreground leading-relaxed">
+                    To use local models (Ollama, LMStudio) in BraneZO, add a credential with the variable name <strong>CUSTOM_API_BASE_URL</strong> and set its value to your proxy endpoint (e.g., <code>http://localhost:11434/v1</code>).
+                  </p>
+                </div>
               </div>
             </div>
           </div>

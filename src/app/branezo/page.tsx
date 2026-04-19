@@ -7,30 +7,126 @@ import { ChatPanel } from "@/components/branezo/chat-panel";
 import { FilesPanel } from "@/components/branezo/files-panel";
 import { cn } from "@/lib/utils";
 import type { ChatMessage, FileChange, FileTreeNode } from "@/components/branezo/types";
-import {
-  MOCK_MESSAGES,
-  MOCK_FILE_CHANGES,
-  MOCK_FILE_TREE,
-  SUGGESTED_PROMPTS,
-} from "@/components/branezo/mock-data";
+import { MOCK_FILE_CHANGES, MOCK_FILE_TREE, SUGGESTED_PROMPTS } from "@/components/branezo/mock-data";
 import { GripVertical } from "lucide-react";
+import { useChatStore } from "@/store/chat-store";
 
 // ── BraneZO Page ──────────────────────────────────────
 
 export default function BraneZOPage() {
-  // Session state
-  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
-  const [files] = useState<FileChange[]>(MOCK_FILE_CHANGES);
+  // Session state from Zustand
+  const { 
+    messages, 
+    setMessages, 
+    isThinking, 
+    setThinking, 
+    tokensUsed, 
+    cost, 
+    currentSessionId 
+  } = useChatStore();
+
+  const [files] = useState<FileChange[]>(MOCK_FILE_CHANGES); // Kept mocked for now until real fs watcher
   const [fileTree] = useState<FileTreeNode[]>(MOCK_FILE_TREE);
-  const [model, setModel] = useState("gpt-5.3-codex");
-  const [isThinking, setIsThinking] = useState(false);
-  const [tokensUsed, setTokensUsed] = useState(24830);
-  const [cost, setCost] = useState(0.12);
+  const [model, setModel] = useState("openai:gpt-4-turbo");
 
   // Resizable panels
   const [splitPercent, setSplitPercent] = useState(42);
   const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Listen for agent streaming responses
+    if (!window.electronAPI) return;
+
+    const cleanupChunk = window.electronAPI.onBraneZOChunk(currentSessionId, (text: string) => {
+      setMessages((prev) => {
+        const msgs = [...prev];
+        let lastMsg = msgs[msgs.length - 1];
+        if (!lastMsg || lastMsg.role !== "assistant") {
+          lastMsg = {
+            id: `msg-${Date.now()}`,
+            role: "assistant",
+            content: "",
+            toolUse: [],
+            timestamp: new Date(),
+          };
+          msgs.push(lastMsg);
+          setThinking(false);
+        }
+        
+        // Safe string concatenation to avoid undefined + undefined = NaN
+        lastMsg.content = (lastMsg.content || "") + (text || "");
+        return msgs;
+      });
+    });
+
+    const cleanupToolCall = window.electronAPI.onBraneZOToolCall(currentSessionId, (call: any) => {
+      setMessages((prev) => {
+        const msgs = [...prev];
+        let lastMsg = msgs[msgs.length - 1];
+        if (!lastMsg || lastMsg.role !== "assistant") {
+          lastMsg = {
+            id: `msg-${Date.now()}`,
+            role: "assistant",
+            content: "",
+            toolUse: [],
+            timestamp: new Date(),
+          };
+          msgs.push(lastMsg);
+          setThinking(false);
+        }
+        
+        lastMsg.toolUse = lastMsg.toolUse || [];
+        lastMsg.toolUse.push({
+          id: call.id,
+          toolName: call.name,
+          input: typeof call.args === "object" ? JSON.stringify(call.args) : call.args,
+          status: "running"
+        });
+        return msgs;
+      });
+    });
+
+    const cleanupToolResult = window.electronAPI.onBraneZOToolResult(currentSessionId, (res: any) => {
+      setMessages((prev) => {
+        const msgs = [...prev];
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg && lastMsg.role === "assistant" && lastMsg.toolUse) {
+          const tool = lastMsg.toolUse.find(t => t.id === res.id);
+          if (tool) {
+            tool.status = res.result?.error ? "error" : "success";
+            tool.output = res.result?.error || res.result?.title || "Completed";
+          }
+        }
+        return msgs;
+      });
+    });
+
+    const cleanupFinish = window.electronAPI.onBraneZOFinish(currentSessionId, () => {
+      setThinking(false);
+    });
+
+    const cleanupError = window.electronAPI.onBraneZOError(currentSessionId, (errString: string) => {
+      setThinking(false);
+      setMessages((prev) => [
+         ...prev,
+         {
+            id: `err-${Date.now()}`,
+            role: "assistant",
+            content: `**Error:** ${errString}\n\nPlease check your provider API key or Model endpoint settings in the ⚙️ Settings dialog.`,
+            timestamp: new Date()
+         }
+      ]);
+    });
+
+    return () => {
+      cleanupChunk();
+      cleanupToolCall();
+      cleanupToolResult();
+      cleanupFinish();
+      cleanupError();
+    };
+  }, []);
 
   const handleSendMessage = useCallback(
     (content: string) => {
@@ -42,43 +138,35 @@ export default function BraneZOPage() {
       };
 
       setMessages((prev) => [...prev, userMsg]);
-      setIsThinking(true);
+      setThinking(true);
 
-      // Simulate AI response
-      setTimeout(() => {
-        const aiMsg: ChatMessage = {
-          id: `msg-${Date.now() + 1}`,
-          role: "assistant",
-          content: `I'll work on that right away. Let me analyze the codebase and implement the changes.\n\nHere's what I found and what I'll do:\n1. Identified the relevant files\n2. Planning the implementation\n3. Applying changes now...`,
-          timestamp: new Date(),
-          toolUse: [
-            {
-              id: `tool-${Date.now()}`,
-              toolName: "FileRead",
-              input: "src/app/page.tsx",
-              output: "Read file contents (170 lines)",
-              status: "success",
-              duration: "0.2s",
-            },
-            {
-              id: `tool-${Date.now() + 1}`,
-              toolName: "FileEdit",
-              input: "src/app/page.tsx",
-              output: "Applied 2 edits successfully",
-              status: "success",
-              duration: "0.8s",
-            },
-          ],
-          filesChanged: ["src/app/page.tsx"],
-        };
-
-        setIsThinking(false);
-        setMessages((prev) => [...prev, aiMsg]);
-        setTokensUsed((prev) => prev + 3200);
-        setCost((prev) => +(prev + 0.02).toFixed(2));
-      }, 2500);
+      if (window.electronAPI) {
+        // Correctly split e.g. "openrouter:anthropic/claude-3-haiku" or "custom:llama3:latest"
+        const firstColon = model.indexOf(":");
+        const providerId = firstColon > -1 ? model.substring(0, firstColon) : "openai";
+        const modelId = firstColon > -1 ? model.substring(firstColon + 1) : "gpt-4-turbo";
+        
+        // Using a dummy key here for the prototype until secret management is hooked up
+        const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || "dummy_key"; 
+        
+        window.electronAPI.startBraneZOChat({
+          id: currentSessionId,
+          messages: [...messages, userMsg]
+            .filter(m => m.content && m.content.trim() !== "")
+            .map(m => ({
+              role: m.role,
+              content: m.content
+            })),
+          workspacePath: "C:/Users/Admin/Documents/projects/branemerge/Brane", // hardcoded temporarily
+          providerId: providerId,
+          modelId: modelId,
+          apiKey: apiKey
+        });
+      } else {
+        setThinking(false); // Can't send if no electron
+      }
     },
-    []
+    [messages, model, currentSessionId]
   );
 
   // ── Drag Resize Logic ─────────────────────────
@@ -129,6 +217,12 @@ export default function BraneZOPage() {
               messages={messages}
               onSendMessage={handleSendMessage}
               isThinking={isThinking}
+              onStop={() => {
+                if (window.electronAPI) {
+                  window.electronAPI.abortBraneZOChat(currentSessionId);
+                }
+                setThinking(false);
+              }}
               model={model}
               onModelChange={setModel}
               tokensUsed={tokensUsed}

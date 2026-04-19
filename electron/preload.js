@@ -25,9 +25,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getInstalledSkills: () => ipcRenderer.invoke("registry:getInstalledSkills"),
   getInstalledMcps: () => ipcRenderer.invoke("registry:getInstalledMcps"),
   toggleSkill: (id, enabled) => ipcRenderer.invoke("registry:toggleSkill", id, enabled),
-  getAllCredentials: () => ipcRenderer.invoke("credentials:getAll"),
-  saveCredential: (key, value) => ipcRenderer.invoke("credentials:save", { key, value }),
-  deleteCredential: (key) => ipcRenderer.invoke("credentials:delete", key),
+  getAllCredentials: () => ipcRenderer.invoke("branezo:get-all-credentials"),
+  saveCredential: (key, value) => ipcRenderer.invoke("branezo:save-credential", key, value),
+  deleteCredential: (key) => ipcRenderer.invoke("branezo:delete-credential", key),
+  getModelsRegistry: () => ipcRenderer.invoke("branezo:get-models-registry"),
   getGithubToken: () => ipcRenderer.invoke("credentials:getGithubToken"),
   setGithubToken: (token) => ipcRenderer.invoke("credentials:setGithubToken", token),
   getRegistryRepo: () => ipcRenderer.invoke("credentials:getRegistryRepo"),
@@ -42,6 +43,40 @@ contextBridge.exposeInMainWorld("electronAPI", {
   checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
   restartAndInstall: () => ipcRenderer.send("restart-and-install"),
   
+  // BraneZO Agent
+  startBraneZOChat: (payload) => ipcRenderer.send("branezo:start-chat", payload),
+  abortBraneZOChat: (id) => ipcRenderer.send("branezo:abort-chat", id),
+  onBraneZOChunk: (id, callback) => {
+    const channel = `branezo:chunk:${id}`;
+    const listener = (e, text) => callback(text);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+  onBraneZOToolCall: (id, callback) => {
+    const channel = `branezo:tool-call:${id}`;
+    const listener = (e, call) => callback(call);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+  onBraneZOToolResult: (id, callback) => {
+    const channel = `branezo:tool-result:${id}`;
+    const listener = (e, res) => callback(res);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+  onBraneZOFinish: (id, callback) => {
+    const channel = `branezo:finish:${id}`;
+    const listener = (e, msgs) => callback(msgs);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+  onBraneZOError: (id, callback) => {
+    const channel = `branezo:error:${id}`;
+    const listener = (e, err) => callback(err);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+
   onUpdateAvailable: (callback) => {
     const listener = (event, info) => callback(info);
     ipcRenderer.on("update-available", listener);

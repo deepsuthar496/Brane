@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, KeyboardEvent } from "react";
+import { useState, useRef, useEffect, KeyboardEvent, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import {
   Send,
@@ -8,16 +8,15 @@ import {
   ChevronDown,
   Sparkles,
   Shield,
+  Settings,
+  Search,
+  Square
 } from "lucide-react";
+import { ProviderSettingsDialog } from "./provider-settings-dialog";
 
 // ── Model Options ─────────────────────────────────────
 
-const MODELS = [
-  { id: "gpt-5.3-codex", label: "GPT-5.3-Codex", badge: null },
-  { id: "claude-opus-4.6", label: "Claude Opus 4.6", badge: "Thinking" },
-  { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", badge: null },
-  { id: "deepseek-r3", label: "DeepSeek R3", badge: "Budget" },
-];
+const DEFAULT_MODELS: any[] = [];
 
 // ── Prompt Bar Component ──────────────────────────────
 
@@ -27,6 +26,8 @@ interface PromptBarProps {
   suggestions?: string[];
   model: string;
   onModelChange: (model: string) => void;
+  isThinking?: boolean;
+  onStop?: () => void;
 }
 
 export function PromptBar({
@@ -35,11 +36,72 @@ export function PromptBar({
   suggestions = [],
   model,
   onModelChange,
+  isThinking,
+  onStop,
 }: PromptBarProps) {
   const [value, setValue] = useState("");
   const [showModels, setShowModels] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [modelsList, setModelsList] = useState(DEFAULT_MODELS);
+  const [searchModel, setSearchModel] = useState("");
+  
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modelsRef = useRef<HTMLDivElement>(null);
+
+  const loadModels = useCallback(async () => {
+    try {
+      const registry = await window.electronAPI.getModelsRegistry();
+      const credentials = await window.electronAPI.getAllCredentials();
+      const customModelsRow = credentials.find((c: any) => c.envVar === "CUSTOM_MODELS_JSON");
+      
+      const newModels: any[] = [];
+      const keysAvailable = credentials.map((c: any) => c.envVar);
+
+      // Add Models.dev dynamically based on connected providers
+      for (const providerId in registry) {
+         const provider = registry[providerId];
+         // Only include models if provider is configured, OR if it's one of the big 3 and we want them visible
+         const hasKey = provider.env && provider.env.some((envKey: string) => keysAvailable.includes(envKey));
+         
+         if (hasKey && provider.models) {
+             for (const mKey in provider.models) {
+                const m = provider.models[mKey];
+                newModels.push({
+                   id: `${providerId}:${m.id}`,
+                   label: m.name || m.id,
+                   badge: provider.name
+                });
+             }
+         }
+      }
+      
+      // Inject user custom specific models
+      if (customModelsRow && customModelsRow.value) {
+         try {
+            const parsed = JSON.parse(customModelsRow.value);
+            parsed.forEach((m: any) => {
+               if (m.id && m.name) {
+                 newModels.push({
+                   id: `custom:${m.id}`,
+                   label: m.name,
+                   badge: "Local",
+                 });
+               }
+            });
+         } catch (e) {
+           console.error("Failed to inject custom models", e);
+         }
+      }
+      setModelsList(newModels);
+      
+    } catch (e) {
+      console.error("Failed to load models", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadModels();
+  }, [loadModels]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -77,7 +139,7 @@ export function PromptBar({
     }
   };
 
-  const currentModel = MODELS.find((m) => m.id === model) || MODELS[0];
+  const currentModel = modelsList.find((m) => m.id === model) || modelsList[0] || { label: "Select Model" };
 
   return (
     <div className="shrink-0 px-5 pb-4 pt-2">
@@ -119,19 +181,29 @@ export function PromptBar({
             <Plus className="size-4" />
           </button>
 
-          {/* Right: send */}
-          <button
-            onClick={handleSend}
-            disabled={!value.trim() || disabled}
-            className={cn(
-              "size-7 rounded-lg flex items-center justify-center transition-all",
-              value.trim() && !disabled
-                ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20"
-                : "bg-muted text-txt-4 cursor-not-allowed"
-            )}
-          >
-            <Send className="size-3.5" />
-          </button>
+          {/* Stop / Send Button */}
+          {isThinking ? (
+            <button
+              onClick={onStop}
+              className="size-8 rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500/30 flex items-center justify-center transition-all shadow-sm"
+              title="Stop Generation"
+            >
+              <Square className="size-3.5 fill-current" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSend}
+              disabled={!value.trim() || disabled}
+              className={cn(
+                "size-7 rounded-lg flex items-center justify-center transition-all",
+                value.trim() && !disabled
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm shadow-primary/20"
+                  : "bg-muted text-txt-4 cursor-not-allowed"
+              )}
+            >
+              <Send className="size-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -157,31 +229,46 @@ export function PromptBar({
           </button>
 
           {showModels && (
-            <div className="absolute bottom-full mb-2 left-0 w-56 rounded-xl border border-border/50 bg-popover shadow-xl shadow-black/40 py-1.5 z-50 animate-in fade-in-0 slide-in-from-bottom-2 duration-150">
-              {MODELS.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    onModelChange(m.id);
-                    setShowModels(false);
-                  }}
-                  className={cn(
-                    "w-full flex items-center gap-2.5 px-3 py-2 text-[12px] hover:bg-muted transition-colors text-left",
-                    m.id === model ? "text-primary" : "text-txt-2"
-                  )}
-                >
-                  <Sparkles className="size-3 shrink-0" />
-                  <span className="flex-1">{m.label}</span>
-                  {m.badge && (
-                    <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full bg-agent-green-dim text-primary">
-                      {m.badge}
-                    </span>
-                  )}
-                  {m.id === model && (
-                    <span className="size-1.5 rounded-full bg-primary" />
-                  )}
-                </button>
-              ))}
+            <div className="absolute bottom-full mb-2 left-0 w-64 rounded-xl border border-border/50 bg-popover shadow-xl shadow-black/40 z-50 flex flex-col max-h-[350px] animate-in fade-in-0 slide-in-from-bottom-2 duration-150">
+              <div className="p-2 border-b border-border/50 sticky top-0 bg-popover z-10 rounded-t-xl">
+                 <div className="relative">
+                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                   <input 
+                     value={searchModel} 
+                     onChange={e => setSearchModel(e.target.value)}
+                     placeholder="Search models..."
+                     className="w-full bg-surface-2 text-xs pl-8 pr-2 py-2 rounded focus:outline-none"
+                   />
+                 </div>
+              </div>
+              <div className="overflow-y-auto w-full py-1.5 flex-1">
+                {modelsList.filter(m => m.label.toLowerCase().includes(searchModel.toLowerCase()) || m.id.toLowerCase().includes(searchModel.toLowerCase())).length === 0 ? (
+                   <div className="px-4 py-3 text-xs text-muted-foreground text-center">No models found</div>
+                ) : (
+                  modelsList.filter(m => m.label.toLowerCase().includes(searchModel.toLowerCase()) || m.id.toLowerCase().includes(searchModel.toLowerCase())).map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        onModelChange(m.id);
+                        setShowModels(false);
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2 text-sm transition-colors",
+                        model === m.id
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-foreground hover:bg-surface-2"
+                      )}
+                    >
+                      <span className="truncate pr-2">{m.label}</span>
+                      {m.badge && (
+                        <span className="shrink-0 rounded-md bg-surface-2/50 px-1.5 py-0.5 text-[10px] text-muted-foreground border border-border/40 max-w-[80px] truncate text-right">
+                          {m.badge}
+                        </span>
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -196,11 +283,21 @@ export function PromptBar({
 
         <span className="text-border">·</span>
 
-        {/* Shield icon */}
-        <button className="text-txt-4 hover:text-txt-2 transition-colors">
-          <Shield className="size-3.5" />
+        {/* Settings icon */}
+        <button 
+           onClick={() => setShowSettings(true)}
+           className="text-txt-4 hover:text-txt-2 transition-colors ml-auto mr-1"
+           title="Configure Providers..."
+        >
+          <Settings className="size-3.5" />
         </button>
       </div>
+
+      <ProviderSettingsDialog 
+         open={showSettings} 
+         onOpenChange={setShowSettings} 
+         onModelsUpdate={loadModels} 
+      />
     </div>
   );
 }
