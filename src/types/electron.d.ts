@@ -12,6 +12,7 @@ export interface ElectronAPI {
   maximize: () => void;
   close: () => void;
   browseFiles: (options?: any) => Promise<{ canceled: boolean; filePaths: string[] }>;
+  openExternal: (url: string) => Promise<void>;
 
   // Logs
   getLogs: () => Promise<LogEntry[]>;
@@ -56,6 +57,9 @@ export interface ElectronAPI {
 
   // BraneZO Agent
   readFileTree: (workspacePath: string) => Promise<any[]>;
+  startOAuth: () => Promise<{ url: string; state: string; pkce: any }>;
+  waitForOAuth: (payload: { state: string; pkce: any }) => Promise<{ code: string; accessToken: string; accountId?: string }>;
+  stopOAuth: () => Promise<void>;
   startBraneZOChat: (payload: {
     id: string;
     messages: { role: string; content: string }[];

@@ -4,23 +4,34 @@ const fs = require("fs/promises");
 const path = require("path");
 const { exec } = require("child_process");
 const util = require("util");
-const glob = require("glob"); // We will use node's native logic or a package. If not installed, we can mock it with fs.readdir
 const execAsync = util.promisify(exec);
 
-// Helper for basic globbing
-async function findFiles(dir, pattern) {
+const IGNORED_DIRS = new Set(['node_modules', '.git', '.next', 'dist', 'build', '.vscode', '.idea', 'out']);
+
+// Improved helper for basic globbing with better exclusion
+async function findFiles(dir, pattern, root = dir) {
   const results = [];
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.name === "node_modules" || entry.name === ".git") continue;
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...(await findFiles(fullPath, pattern)));
-    } else {
-      if (entry.name.includes(pattern) || fullPath.includes(pattern)) {
-        results.push(fullPath);
+  try {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (IGNORED_DIRS.has(entry.name)) continue;
+      
+      const fullPath = path.join(dir, entry.name);
+      const relPath = path.relative(root, fullPath).replace(/\\/g, '/');
+
+      if (entry.isDirectory()) {
+        results.push(...(await findFiles(fullPath, pattern, root)));
+      } else {
+        if (entry.name.toLowerCase().includes(pattern.toLowerCase()) || relPath.toLowerCase().includes(pattern.toLowerCase())) {
+          results.push(fullPath);
+        }
       }
+      
+      // Limit to prevent massive results slowing down the agent
+      if (results.length > 500) break;
     }
+  } catch (e) {
+    // Ignore read errors for specific files
   }
   return results;
 }
@@ -121,28 +132,24 @@ const getTools = (workspacePath) => {
       }),
       execute: async ({ pattern, path: searchPath = "." }) => {
         try {
-          // A robust cross-platform grep fallback.
-          // In real production we'd use ripgrep, but we fallback to git grep or simple find.
-          // using powershell Select-String on Windows, grep on linux.
           const isWin = process.platform === "win32";
           let cmd = '';
           const safePattern = pattern.replace(/"/g, '\\"');
           
           if (isWin) {
-            cmd = \`powershell -NoProfile -Command "Select-String -Path '\${searchPath}\\*' -Pattern '\${safePattern}' -Recurse -Exclude node_modules, .git | Select-Object -First 100 | Format-Table -Property Path, LineNumber, Line"\`;
+            cmd = `powershell -NoProfile -Command "Select-String -Path '${searchPath}\\*' -Pattern '${safePattern}' -Recurse -Exclude node_modules, .git, .next, dist, build | Select-Object -First 100 | Format-Table -Property Path, LineNumber, Line"`;
           } else {
-            cmd = \`grep -rn "\${safePattern}" \${searchPath} --exclude-dir=node_modules --exclude-dir=.git | head -n 100\`;
+            cmd = `grep -rn "${safePattern}" ${searchPath} --exclude-dir={node_modules,.git,.next,dist,build} | head -n 100`;
           }
           
           const { stdout, stderr } = await execAsync(cmd, { cwd: workspacePath });
           return { 
             results: stdout.toString().trim() || "No matches found.", 
-            title: \`Searched for '\${pattern}'\` 
+            title: `Searched for '${pattern}'` 
           };
         } catch (error) {
           if (error.code === 1 || error.stdout) {
-             // grep returns exit code 1 if no lines match
-             return { results: "No matches found.", title: \`Searched for '\${pattern}'\` };
+             return { results: "No matches found.", title: `Searched for '${pattern}'` };
           }
           return { error: error.message };
         }
@@ -163,14 +170,14 @@ const getTools = (workspacePath) => {
           return { 
             stdout: stdout.toString().slice(0, 10000), 
             stderr: stderr.toString().slice(0, 10000),
-            title: \`Run \${command.split(' ')[0]}\`
+            title: `Run ${command.split(' ')[0]}`
           };
         } catch (error) {
            return { 
             error: error.message, 
             stdout: error.stdout?.toString().slice(0, 10000),
             stderr: error.stderr?.toString().slice(0, 10000),
-            title: \`Failed \${command.split(' ')[0]}\`
+            title: `Failed ${command.split(' ')[0]}`
           };
         }
       },

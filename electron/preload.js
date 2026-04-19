@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   maximize: () => ipcRenderer.send("window-maximize"),
   close: () => ipcRenderer.send("window-close"),
   browseFiles: (options) => ipcRenderer.invoke("browse-files", options),
+  openExternal: (url) => ipcRenderer.invoke("open-external", url),
   
   // Logs
   getLogs: () => ipcRenderer.invoke("get-logs"),
@@ -45,6 +46,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   
   // BraneZO Agent
   readFileTree: (workspacePath) => ipcRenderer.invoke("branezo:read-file-tree", workspacePath),
+  startOAuth: () => ipcRenderer.invoke("branezo:start-oauth"),
+  waitForOAuth: (payload) => ipcRenderer.invoke("branezo:wait-for-oauth", payload),
+  stopOAuth: () => ipcRenderer.invoke("branezo:stop-oauth"),
   startBraneZOChat: (payload) => ipcRenderer.send("branezo:start-chat", payload),
   abortBraneZOChat: (id) => ipcRenderer.send("branezo:abort-chat", id),
   onBraneZOChunk: (id, callback) => {

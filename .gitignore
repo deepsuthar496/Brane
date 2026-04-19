@@ -45,5 +45,6 @@ next-env.d.ts
 *.rpm
 *.zip
 
-graphify-out/cache/
+graphify-out/
 tempknowledge
+core_codebases/

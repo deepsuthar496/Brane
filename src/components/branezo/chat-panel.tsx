@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import type { ChatMessage as ChatMessageType } from "./types";
+import type { ChatMessage as ChatMessageType, FileTreeNode } from "./types";
 import { ChatMessageComponent } from "./chat-message";
 import { PromptBar } from "./prompt-bar";
 import { Bot, Coins, Hash } from "lucide-react";
@@ -18,6 +18,7 @@ interface ChatPanelProps {
   cost: number;
   suggestions?: string[];
   sessionTitle: string;
+  fileTree?: FileTreeNode[];
   onStop?: () => void;
 }
 
@@ -31,6 +32,7 @@ export function ChatPanel({
   cost,
   suggestions = [],
   sessionTitle,
+  fileTree = [],
   onStop,
 }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -116,6 +118,7 @@ export function ChatPanel({
         model={model}
         onModelChange={onModelChange}
         onStop={onStop}
+        fileTree={fileTree}
       />
     </div>
   );

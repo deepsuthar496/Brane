@@ -20,6 +20,9 @@ export function ProviderSettingsDialog({ open, onOpenChange, onModelsUpdate }: P
 
   // Connection sub-dialog state
   const [connectingProvider, setConnectingProvider] = useState<any>(null);
+  const [loginMethod, setLoginMethod] = useState<"oauth" | "api" | null>(null);
+  const [oauthData, setOauthData] = useState<{ url: string; code?: string } | null>(null);
+  const [oauthError, setOauthError] = useState<string | null>(null);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -74,6 +77,46 @@ export function ProviderSettingsDialog({ open, onOpenChange, onModelsUpdate }: P
     }
   };
 
+  const handleStartOAuth = async () => {
+    setOauthError(null);
+    try {
+      const res = await window.electronAPI.startOAuth();
+      setOauthData(res);
+      // Open the URL in the system browser
+      await window.electronAPI.openExternal(res.url);
+      
+      const authResult = await window.electronAPI.waitForOAuth({ state: res.state, pkce: res.pkce });
+      
+      if (authResult && authResult.accessToken) {
+        setApiKeyInput("oauth-...");
+        const tokenString = authResult.accountId ? `${authResult.accessToken}::${authResult.accountId}` : authResult.accessToken;
+        await handleSaveOAuthResult(tokenString);
+      }
+    } catch (e: any) {
+      console.error("OAuth failed or cancelled", e);
+      setOauthError(e.message || "Authorization failed");
+    }
+  };
+
+  const handleSaveOAuthResult = async (tokenData: string) => {
+    if (!connectingProvider || !connectingProvider.env || connectingProvider.env.length === 0) return;
+    setIsSaving(true);
+    try {
+      const primaryEnv = connectingProvider.env[0];
+      await window.electronAPI.saveCredential(primaryEnv, `oauth-${tokenData}`);
+      setConnectingProvider(null);
+      setLoginMethod(null);
+      setOauthData(null);
+      setApiKeyInput("");
+      await loadCredentials();
+      onModelsUpdate();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const saveStandardKey = async () => {
     if (!connectingProvider || !connectingProvider.env || connectingProvider.env.length === 0) return;
     setIsSaving(true);
@@ -85,6 +128,8 @@ export function ProviderSettingsDialog({ open, onOpenChange, onModelsUpdate }: P
         await window.electronAPI.deleteCredential(primaryEnv);
       }
       setConnectingProvider(null);
+      setLoginMethod(null);
+      setOauthData(null);
       setApiKeyInput("");
       await loadCredentials();
       onModelsUpdate();
@@ -189,25 +234,137 @@ export function ProviderSettingsDialog({ open, onOpenChange, onModelsUpdate }: P
                     </div>
 
                     {connectingProvider?.id === provider.id ? (
-                      <div className="flex items-center gap-2 w-full animate-in fade-in-0 duration-200">
-                        <Input
-                          type="password"
-                          autoFocus
-                          placeholder="sk-..."
-                          value={apiKeyInput}
-                          onChange={(e) => setApiKeyInput(e.target.value)}
-                          className="h-8 flex-1"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") saveStandardKey();
-                            if (e.key === "Escape") setConnectingProvider(null);
-                          }}
-                        />
-                        <Button size="sm" onClick={saveStandardKey} disabled={isSaving}>
-                          {isSaving ? <Loader2 className="size-4 animate-spin" /> : "Save"}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setConnectingProvider(null)}>
-                          Cancel
-                        </Button>
+                      <div className="flex flex-col gap-3 w-full animate-in fade-in-0 duration-200 bg-surface-2/50 p-4 rounded-xl border border-border/50">
+                        {(!loginMethod && (provider.id === "openai" || provider.id === "codex")) ? (
+                          <div className="flex flex-col gap-2.5">
+                             <span className="text-[13px] font-medium text-txt-2">Select login method for {provider.name}.</span>
+                             <div className="grid grid-cols-1 gap-2">
+                                <button 
+                                  onClick={() => {
+                                    setLoginMethod("oauth");
+                                    handleStartOAuth();
+                                  }}
+                                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-2 hover:bg-surface-3 text-left transition-all border border-border/40 group"
+                                >
+                                   <div className="size-4 rounded border border-border group-hover:border-primary flex items-center justify-center transition-colors">
+                                      <div className="size-2 rounded-sm bg-primary scale-0 group-hover:scale-100 transition-transform" />
+                                   </div>
+                                   <span className="text-sm font-medium">ChatGPT Pro/Plus (browser)</span>
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setLoginMethod("oauth");
+                                    handleStartOAuth();
+                                  }}
+                                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-2 hover:bg-surface-3 text-left transition-all border border-border/40 group"
+                                >
+                                   <div className="size-4 rounded border border-border group-hover:border-primary flex items-center justify-center transition-colors">
+                                      <div className="size-2 rounded-sm bg-primary scale-0 group-hover:scale-100 transition-transform" />
+                                   </div>
+                                   <span className="text-sm font-medium">ChatGPT Pro/Plus (headless)</span>
+                                </button>
+                                <button 
+                                  onClick={() => setLoginMethod("api")}
+                                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-2 hover:bg-surface-3 text-left transition-all border border-border/40 group"
+                                >
+                                   <div className="size-4 rounded border border-border group-hover:border-primary flex items-center justify-center transition-colors">
+                                      <div className="size-2 rounded-sm bg-primary scale-0 group-hover:scale-100 transition-transform" />
+                                   </div>
+                                   <span className="text-sm font-medium">API key</span>
+                                </button>
+                             </div>
+                             <div className="flex justify-end pt-1">
+                                <Button size="sm" variant="ghost" onClick={() => {
+                                   setConnectingProvider(null);
+                                   setLoginMethod(null);
+                                }}>
+                                  Cancel
+                                </Button>
+                             </div>
+                          </div>
+                        ) : loginMethod === "oauth" ? (
+                          <div className="flex flex-col gap-4 animate-in fade-in-0 duration-300">
+                             <div className="flex items-start justify-between">
+                                <div className="flex flex-col gap-1">
+                                   <span className="text-[13px] font-medium text-foreground">Connect {provider.name}</span>
+                                   <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                      Visit <a href={oauthData?.url} target="_blank" className="text-primary hover:underline font-medium">this link</a> and enter the code below to connect your account and use {provider.name} models in BraneZO.
+                                   </p>
+                                </div>
+                             </div>
+
+                             <div className="flex flex-col gap-2">
+                                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Confirmation code</Label>
+                                <div className="relative group">
+                                   <Input 
+                                      readOnly 
+                                      value={apiKeyInput || "Complete authorization in your browser. This window will close au"} 
+                                      className="bg-background border-border/40 text-[13px] font-mono pr-10"
+                                   />
+                                   <Button variant="ghost" size="icon" className="absolute right-1 top-1 size-7 text-muted-foreground hover:text-foreground">
+                                      <Bot className="size-3.5" />
+                                   </Button>
+                                </div>
+                             </div>
+
+                             <div className="flex items-center gap-2 pt-2 text-[12px]">
+                                {oauthError ? (
+                                  <span className="text-red-500 font-medium">{oauthError}</span>
+                                ) : (
+                                  <>
+                                    <Loader2 className="size-3.5 animate-spin text-primary" />
+                                    <span className="text-muted-foreground">Waiting for authorization...</span>
+                                  </>
+                                )}
+                             </div>
+
+                             <div className="flex justify-end pt-2">
+                                <Button size="sm" variant="ghost" onClick={() => {
+                                   setLoginMethod(null);
+                                   setOauthData(null);
+                                   setOauthError(null);
+                                   window.electronAPI.stopOAuth();
+                                }}>
+                                   Back
+                                </Button>
+                             </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 w-full">
+                            <Input
+                              type="password"
+                              autoFocus
+                              placeholder="sk-..."
+                              value={apiKeyInput}
+                              onChange={(e) => setApiKeyInput(e.target.value)}
+                              className="h-8 flex-1"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveStandardKey();
+                                if (e.key === "Escape") {
+                                  if (loginMethod && (provider.id === "openai" || provider.id === "codex")) {
+                                    setLoginMethod(null);
+                                  } else {
+                                    setConnectingProvider(null);
+                                    setLoginMethod(null);
+                                  }
+                                }
+                              }}
+                            />
+                            <Button size="sm" onClick={saveStandardKey} disabled={isSaving}>
+                              {isSaving ? <Loader2 className="size-4 animate-spin" /> : "Save"}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => {
+                               if (loginMethod && (provider.id === "openai" || provider.id === "codex")) {
+                                 setLoginMethod(null);
+                               } else {
+                                 setConnectingProvider(null);
+                                 setLoginMethod(null);
+                               }
+                            }}>
+                              {loginMethod ? "Back" : "Cancel"}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <Button

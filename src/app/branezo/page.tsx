@@ -273,6 +273,7 @@ export default function BraneZOPage() {
                   cost={cost}
                   suggestions={SUGGESTED_PROMPTS}
                   sessionTitle={workspacePath.split(/[\/\\]/).pop() || "BraneZO"}
+                  fileTree={fileTree}
                 />
               </div>
 

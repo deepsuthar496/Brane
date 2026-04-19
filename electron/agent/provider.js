@@ -6,6 +6,26 @@ const { createGoogleGenerativeAI } = require("@ai-sdk/google");
 const credentialsManager = require("../credentials-manager");
 const modelsRegistry = require("../models-registry");
 
+function parseJwtClaims(token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return undefined;
+  try {
+    return JSON.parse(Buffer.from(parts[1], "base64url").toString());
+  } catch {
+    return undefined;
+  }
+}
+
+function extractAccountId(token) {
+  const claims = parseJwtClaims(token);
+  if (!claims) return undefined;
+  return (
+    claims.chatgpt_account_id ||
+    claims["https://api.openai.com/auth"]?.chatgpt_account_id ||
+    claims.organizations?.[0]?.id
+  );
+}
+
 class ProviderManager {
   constructor() {
     this.providers = new Map();
@@ -68,12 +88,92 @@ class ProviderManager {
 
       case "@ai-sdk/openai-compatible":
       default:
+        if (providerId === "codex" && resolvedKey) {
+          let accessToken = resolvedKey;
+          let accountId = null;
+          
+          if (accessToken.startsWith("oauth-")) {
+            accessToken = accessToken.slice(6);
+            if (accessToken.includes("::")) {
+               const parts = accessToken.split("::");
+               accessToken = parts[0];
+               accountId = parts[1];
+            }
+          }
+          
+          if (!accountId) {
+             accountId = extractAccountId(accessToken);
+          }
+          
+          return createOpenAICompatible({
+            name: "codex",
+            baseURL: "https://chatgpt.com/backend-api/codex",
+            apiKey: accessToken,
+            fetch: async (url, options) => {
+              const headers = new Headers(options.headers);
+              headers.set("authorization", `Bearer ${accessToken}`);
+              if (accountId) {
+                headers.set("ChatGPT-Account-Id", accountId);
+              }
+              headers.set("originator", "opencode");
+              headers.set("User-Agent", `opencode/1.2.3 (win32 10.0; x64)`);
+              headers.set("session_id", Date.now().toString());
+              
+              // Rewriting URL from chat/completions to responses
+              const targetUrl = url.toString().includes("/chat/completions") 
+                ? "https://chatgpt.com/backend-api/codex/responses" 
+                : url;
+              
+              // Map standard chat/completions body to ChatGPT Responses API format
+              if (options.body && typeof options.body === "string" && targetUrl.includes("/responses")) {
+                try {
+                  const body = JSON.parse(options.body);
+                  if (body.messages) {
+                    body.input = body.messages.map(msg => {
+                      if (typeof msg.content === "string") {
+                        if (msg.role === "system") return { role: "system", content: msg.content };
+                        if (msg.role === "assistant") return { role: "assistant", content: [{ type: "output_text", text: msg.content }] };
+                        return { role: msg.role, content: [{ type: "input_text", text: msg.content }] };
+                      }
+                      
+                      // Map array contents
+                      if (Array.isArray(msg.content)) {
+                         const newContent = msg.content.map(part => {
+                            if (part.type === "text") return { type: msg.role === "assistant" ? "output_text" : "input_text", text: part.text };
+                            // Very basic tool-use mapping
+                            if (part.type === "tool_calls") return part; 
+                            return part;
+                         });
+                         return { role: msg.role, content: newContent };
+                      }
+                      return msg;
+                    });
+                    delete body.messages;
+                  }
+                  if (body.max_tokens !== undefined) {
+                    body.max_output_tokens = body.max_tokens;
+                    delete body.max_tokens;
+                  }
+                  options.body = JSON.stringify(body);
+                } catch (err) {
+                  console.error("Failed to parse/rewrite body for Codex API", err);
+                }
+              }
+              
+              return fetch(targetUrl, {
+                ...options,
+                headers
+              });
+            }
+          });
+        }
+
         // All other OpenAI-compatible proxies (Together, Groq, Ollama, LMStudio, etc.)
         // Use openai-compatible which hits /chat/completions NOT /responses
         return createOpenAICompatible({
           name: providerId,
           baseURL: providerConfig.api || "http://localhost:11434/v1",
-          apiKey: resolvedKey || "local",
+          apiKey: resolvedKey || (providerId === "codex" ? "dummy_key" : "local"),
         });
     }
   }

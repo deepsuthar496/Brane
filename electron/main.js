@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 require("dotenv").config();
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
 
 // ... (previous code)
 
@@ -9,6 +9,9 @@ ipcMain.handle("browse-files", async (event, options) => {
   return await dialog.showOpenDialog(win, options || {
     properties: ["openFile", "multiSelections"]
   });
+});
+ipcMain.handle("open-external", async (event, url) => {
+  return await shell.openExternal(url);
 });
 const path = require("path");
 const { autoUpdater } = require("electron-updater");
@@ -26,6 +29,7 @@ const credentialsManager = require("./credentials-manager");
 const logsManager = require("./logs-manager");
 const knowledgeManager = require("./knowledge-manager");
 const filesManager = require("./files-manager");
+const oauthManager = require("./oauth-manager");
 const { installCLI, startAgent, stopAgent, getAgentStatus } = require("./execution-manager");
 const agentSession = require("./agent/session");
 const modelsRegistry = require("./models-registry");
@@ -228,6 +232,18 @@ ipcMain.on("branezo:start-chat", async (event, payload) => {
 
 ipcMain.on("branezo:abort-chat", (event, id) => {
   agentSession.abortChat(id);
+});
+
+ipcMain.handle("branezo:start-oauth", async () => {
+  return await oauthManager.startAuth();
+});
+
+ipcMain.handle("branezo:wait-for-oauth", async (event, payload) => {
+  return await oauthManager.waitForCallback(payload.state, payload.pkce);
+});
+
+ipcMain.handle("branezo:stop-oauth", async () => {
+  return oauthManager.stopServer();
 });
 
 ipcMain.handle("branezo:read-file-tree", async (event, workspacePath) => {

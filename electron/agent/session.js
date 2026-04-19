@@ -1,6 +1,8 @@
 const { streamText } = require("ai");
 const providerManager = require("./provider");
 const { getTools } = require("./tools");
+const fs = require("fs/promises");
+const path = require("path");
 
 const DEFAULT_SYSTEM_PROMPT = `You are BraneZO, a highly capable, autonomous AI coding assistant integrated directly into the Brane Hub desktop IDE.
 
@@ -27,6 +29,64 @@ const DEFAULT_SYSTEM_PROMPT = `You are BraneZO, a highly capable, autonomous AI 
 - When referencing file paths, use relative paths from the workspace root.
 - Keep your tone professional, helpful, and direct.`;
 
+async function processMentions(messages, workspacePath) {
+  if (!messages || messages.length === 0) return messages;
+  
+  const processedMessages = [...messages];
+  const latestMessage = processedMessages[processedMessages.length - 1];
+  
+  if (latestMessage.role === "user" && typeof latestMessage.content === "string") {
+    const quotedRegex = /(^|\s)@"([^"]+)"/g;
+    const regularRegex = /(^|\s)@([^\s]+)\b/g;
+    
+    const mentions = new Set();
+    let match;
+    
+    while ((match = quotedRegex.exec(latestMessage.content)) !== null) {
+      mentions.add(match[2]);
+    }
+    
+    const regularMatches = latestMessage.content.match(regularRegex) || [];
+    for (const m of regularMatches) {
+      const filename = m.slice(m.indexOf('@') + 1);
+      if (!filename.startsWith('"')) {
+        mentions.add(filename);
+      }
+    }
+    
+    if (mentions.size > 0) {
+      let attachmentsContext = "\n\n<context>\n";
+      for (const mention of mentions) {
+        try {
+          const absPath = path.resolve(workspacePath, mention);
+          if (absPath.startsWith(path.resolve(workspacePath))) {
+             const stat = await fs.stat(absPath);
+             if (stat.isFile()) {
+               const content = await fs.readFile(absPath, "utf-8");
+               attachmentsContext += `---
+source_file: "${mention}"
+type: "code"
+---
+${content}
+
+`;
+             }
+          }
+        } catch (e) {
+          // Ignore if file not found or cannot be read
+        }
+      }
+      attachmentsContext += "</context>";
+      
+      if (attachmentsContext !== "\n\n<context>\n</context>") {
+        latestMessage.content += attachmentsContext;
+      }
+    }
+  }
+  
+  return processedMessages;
+}
+
 class AgentSession {
   constructor() {
     this.activeStreams = new Map();
@@ -43,10 +103,11 @@ class AgentSession {
     try {
       const model = await providerManager.getModel(providerId, modelId);
       const tools = getTools(workspacePath);
+      const processedMessages = await processMentions(messages, workspacePath);
 
       const result = streamText({
         model,
-        messages,
+        messages: processedMessages,
         system: systemPrompt || DEFAULT_SYSTEM_PROMPT,
         tools,
         abortSignal: abortController.signal,
@@ -54,7 +115,7 @@ class AgentSession {
         onStepFinish: (event) => {
            if (event.toolCalls && event.toolCalls.length > 0) {
              for (const call of event.toolCalls) {
-               console.log(`\n[BraneZO Tool Called]: ${call.toolName}`);
+               console.log(`\n[BraneZO Tool Call]: ${call.toolName}(${JSON.stringify(call.args)})`);
                onToolCall({
                  id: call.toolCallId,
                  name: call.toolName,
@@ -64,6 +125,7 @@ class AgentSession {
            }
            if (event.toolResults && event.toolResults.length > 0) {
              for (const res of event.toolResults) {
+               console.log(`\n[BraneZO Tool Result]: ${res.toolName} -> ${res.result?.error ? "ERROR" : "SUCCESS"}`);
                onToolResult({
                  id: res.toolCallId,
                  name: res.toolName,
@@ -77,12 +139,20 @@ class AgentSession {
       for await (const chunk of result.fullStream) {
         if (abortController.signal.aborted) break;
         
-        if (chunk.type === "text-delta") {
-          process.stdout.write(chunk.text || ""); // Terminal fallback logging
-          onChunk(chunk.text || "");
-        } else if (chunk.type === "error") {
-          console.error("\n[BraneZO ERROR]:", chunk.error);
-          throw chunk.error;
+        switch (chunk.type) {
+          case "text-delta":
+            process.stdout.write(chunk.text || "");
+            onChunk(chunk.text || "");
+            break;
+          case "tool-call":
+            // Tool call started, but onStepFinish will handle the IPC event
+            break;
+          case "tool-result":
+            // Tool result arrived, but onStepFinish will handle the IPC event
+            break;
+          case "error":
+            console.error("\n[BraneZO ERROR]:", chunk.error);
+            throw chunk.error;
         }
       }
       
