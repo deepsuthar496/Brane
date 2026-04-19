@@ -15,7 +15,8 @@ import {
   Copy,
   Check,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -242,43 +243,44 @@ export default function StorePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0 border-t border-l border-white/5">
                   {filteredAgents.map((agent) => (
                     <div 
                       key={agent.id}
-                      className="group flex flex-col p-6 rounded-2xl bg-surface-1 border border-border/40 hover:border-primary/40 hover:bg-surface-2 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                      className="group relative flex flex-col p-6 bg-background hover:bg-surface-2 transition-all cursor-pointer border-r border-b border-white/5"
                       onClick={() => setSelectedAgent(agent)}
                     >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="size-14 rounded-2xl bg-background border border-border/60 flex items-center justify-center text-[28px] shrink-0 shadow-inner group-hover:scale-105 transition-transform duration-300 text-primary">
-                          <Icon icon={agent.icon} />
+                      {/* Header: Icon + Name + Arrow */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="size-8 rounded-lg bg-surface-3 border border-border/40 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200 text-primary">
+                            <Icon icon={agent.icon} className="size-4" />
+                          </div>
+                          <h3 className="text-[16px] font-semibold text-foreground tracking-tight truncate leading-none">
+                            {agent.name}
+                          </h3>
                         </div>
-                      </div>
-                      
-                      <div className="flex-1 space-y-1">
-                        <h3 className="text-[18px] font-bold text-foreground leading-snug truncate">
-                          {agent.name}
-                        </h3>
-                        <p className="text-[13px] text-primary font-semibold truncate mb-2">
-                          {agent.developer}
-                        </p>
-                        <p className="text-[13px] text-txt-3 leading-relaxed line-clamp-2 min-h-[40px]">
-                          {agent.shortDescription}
-                        </p>
+                        <ArrowUpRight className="size-4 text-txt-4 group-hover:text-primary transition-colors shrink-0" />
                       </div>
 
-                      <div className="mt-5 flex items-center justify-between pt-4 border-t border-border/40">
-                        <div className="flex items-center gap-1">
-                          <span className="text-[12px] font-bold text-foreground">{agent.rating}</span>
-                          <Star className="size-3 text-foreground fill-foreground" />
+                      {/* Description */}
+                      <p className="text-[13px] text-txt-3 leading-relaxed line-clamp-2 mb-6 min-h-[40px]">
+                        {agent.shortDescription}
+                      </p>
+
+                      {/* Footer: Category & Stats */}
+                      <div className="mt-auto flex items-center justify-between">
+                        <div className="px-2 py-0.5 rounded bg-surface-3 border border-border/60 text-[10px] text-txt-3 font-bold uppercase tracking-widest">
+                          {agent.developer}
                         </div>
-                        <Button 
-                          size="sm" 
-                          className="h-8 px-4 rounded-full text-[11px] font-bold uppercase tracking-wider bg-primary text-black hover:bg-primary/90 transition-colors"
-                        >
-                          View
-                        </Button>
+                        <div className="flex items-center gap-2 text-txt-4">
+                          <Star className="size-3.5 fill-current text-primary opacity-50 group-hover:opacity-100 transition-opacity" />
+                          <span className="text-[12px] font-medium font-mono">{agent.rating}</span>
+                        </div>
                       </div>
+
+                      {/* Top selection line for active feel */}
+                      <div className="absolute top-0 left-0 w-full h-[2px] bg-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
                     </div>
                   ))}
                   {filteredAgents.length === 0 && (
