@@ -126,7 +126,7 @@ export default function BraneZOPage() {
       cleanupFinish();
       cleanupError();
     };
-  }, []);
+  }, [currentSessionId, setMessages, setThinking]);
 
   const handleSendMessage = useCallback(
     (content: string) => {

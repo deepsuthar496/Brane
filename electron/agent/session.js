@@ -59,11 +59,11 @@ class AgentSession {
         if (abortController.signal.aborted) break;
         
         if (chunk.type === "text-delta") {
-          process.stdout.write(chunk.textDelta || ""); // Terminal fallback logging
-          onChunk(chunk.textDelta || "");
+          process.stdout.write(chunk.text || ""); // Terminal fallback logging
+          onChunk(chunk.text || "");
         } else if (chunk.type === "error") {
           console.error("\n[BraneZO ERROR]:", chunk.error);
-          onError(chunk.error);
+          throw chunk.error;
         }
       }
       
