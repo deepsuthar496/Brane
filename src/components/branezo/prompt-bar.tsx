@@ -44,6 +44,7 @@ export function PromptBar({
   const [showSettings, setShowSettings] = useState(false);
   const [modelsList, setModelsList] = useState(DEFAULT_MODELS);
   const [searchModel, setSearchModel] = useState("");
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modelsRef = useRef<HTMLDivElement>(null);
@@ -69,7 +70,8 @@ export function PromptBar({
                 newModels.push({
                    id: `${providerId}:${m.id}`,
                    label: m.name || m.id,
-                   badge: provider.name
+                   badge: provider.name,
+                   providerId
                 });
              }
          }
@@ -85,6 +87,7 @@ export function PromptBar({
                    id: `custom:${m.id}`,
                    label: m.name,
                    badge: "Local",
+                   providerId: "custom"
                  });
                }
             });
@@ -140,6 +143,21 @@ export function PromptBar({
   };
 
   const currentModel = modelsList.find((m) => m.id === model) || modelsList[0] || { label: "Select Model" };
+
+  const uniqueProviders = Array.from(
+    new Map(modelsList.filter(m => m.providerId).map(m => [m.providerId, m.badge])).entries()
+  ).map(([id, name]) => ({ id, name }));
+
+  const filteredModels = modelsList
+    .filter(m => selectedProvider ? m.providerId === selectedProvider : true)
+    .filter(m => m.label.toLowerCase().includes(searchModel.toLowerCase()) || m.id.toLowerCase().includes(searchModel.toLowerCase()));
+
+  const groupedModels = filteredModels.reduce((acc, m) => {
+    const key = m.providerId || 'other';
+    if (!acc[key]) acc[key] = { name: m.badge || 'Other', models: [] };
+    acc[key].models.push(m);
+    return acc;
+  }, {} as Record<string, { name: string, models: typeof filteredModels }>);
 
   return (
     <div className="shrink-0 px-5 pb-4 pt-2">
@@ -230,7 +248,7 @@ export function PromptBar({
 
           {showModels && (
             <div className="absolute bottom-full mb-2 left-0 w-64 rounded-xl border border-border/50 bg-popover shadow-xl shadow-black/40 z-50 flex flex-col max-h-[350px] animate-in fade-in-0 slide-in-from-bottom-2 duration-150">
-              <div className="p-2 border-b border-border/50 sticky top-0 bg-popover z-10 rounded-t-xl">
+              <div className="p-2 border-b border-border/50 sticky top-0 bg-popover z-10 rounded-t-xl flex flex-col gap-2">
                  <div className="relative">
                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                    <input 
@@ -240,32 +258,100 @@ export function PromptBar({
                      className="w-full bg-surface-2 text-xs pl-8 pr-2 py-2 rounded focus:outline-none"
                    />
                  </div>
+                 {uniqueProviders.length > 0 && (
+                   <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
+                     <button
+                       onClick={() => setSelectedProvider(null)}
+                       className={cn(
+                         "text-[10px] px-2 py-1 rounded-md whitespace-nowrap transition-colors flex items-center justify-center h-6",
+                         selectedProvider === null 
+                           ? "bg-primary text-primary-foreground" 
+                           : "bg-surface-2 text-muted-foreground hover:text-foreground"
+                       )}
+                     >
+                       All
+                     </button>
+                     {uniqueProviders.map(provider => (
+                       <button
+                         key={provider.id}
+                         onClick={() => setSelectedProvider(provider.id)}
+                         title={provider.name}
+                         className={cn(
+                           "text-[10px] px-2 py-1 rounded-md whitespace-nowrap transition-colors flex items-center justify-center h-6 min-w-6",
+                           selectedProvider === provider.id
+                             ? "bg-primary/20 text-primary" 
+                             : "bg-surface-2 text-muted-foreground hover:text-foreground hover:bg-surface-2/80"
+                         )}
+                       >
+                         {provider.id === 'custom' || provider.id === 'local' ? (
+                           <span>{provider.name}</span>
+                         ) : (
+                           <img 
+                             src={`https://models.dev/logos/${provider.id}.svg`} 
+                             alt={provider.name} 
+                             className="w-3.5 h-3.5 object-contain" 
+                             onError={(e) => {
+                               e.currentTarget.style.display = 'none';
+                               if (e.currentTarget.nextElementSibling) {
+                                 (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'inline';
+                               }
+                             }}
+                           />
+                         )}
+                         {provider.id !== 'custom' && provider.id !== 'local' && (
+                           <span className="hidden">{provider.name}</span>
+                         )}
+                       </button>
+                     ))}
+                   </div>
+                 )}
               </div>
               <div className="overflow-y-auto w-full py-1.5 flex-1">
-                {modelsList.filter(m => m.label.toLowerCase().includes(searchModel.toLowerCase()) || m.id.toLowerCase().includes(searchModel.toLowerCase())).length === 0 ? (
+                {filteredModels.length === 0 ? (
                    <div className="px-4 py-3 text-xs text-muted-foreground text-center">No models found</div>
                 ) : (
-                  modelsList.filter(m => m.label.toLowerCase().includes(searchModel.toLowerCase()) || m.id.toLowerCase().includes(searchModel.toLowerCase())).map((m) => (
-                    <button
-                      key={m.id}
-                      onClick={() => {
-                        onModelChange(m.id);
-                        setShowModels(false);
-                      }}
-                      className={cn(
-                        "w-full flex items-center justify-between px-3 py-2 text-sm transition-colors",
-                        model === m.id
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-foreground hover:bg-surface-2"
-                      )}
-                    >
-                      <span className="truncate pr-2">{m.label}</span>
-                      {m.badge && (
-                        <span className="shrink-0 rounded-md bg-surface-2/50 px-1.5 py-0.5 text-[10px] text-muted-foreground border border-border/40 max-w-[80px] truncate text-right">
-                          {m.badge}
-                        </span>
-                      )}
-                    </button>
+                  Object.entries(groupedModels).map(([providerId, group]) => (
+                    <div key={providerId} className="mb-3 last:mb-1">
+                      <div className="px-3 py-1.5 flex items-center gap-2 mb-0.5">
+                        {providerId === 'custom' || providerId === 'local' || providerId === 'other' ? (
+                          <span className="text-[11px] font-semibold text-muted-foreground">{group.name}</span>
+                        ) : (
+                          <>
+                            <img 
+                              src={`https://models.dev/logos/${providerId}.svg`} 
+                              alt={group.name} 
+                              className="w-4 h-4 object-contain opacity-70" 
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                if (e.currentTarget.nextElementSibling) {
+                                  (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'inline';
+                                }
+                              }}
+                            />
+                            <span className="text-[11px] font-semibold text-muted-foreground">{group.name}</span>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex flex-col">
+                        {group.models.map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => {
+                              onModelChange(m.id);
+                              setShowModels(false);
+                            }}
+                            className={cn(
+                              "w-full flex items-center justify-between px-3 py-1.5 text-[13px] transition-colors",
+                              model === m.id
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-foreground hover:bg-surface-2"
+                            )}
+                          >
+                            <span className="truncate font-medium">{m.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ))
                 )}
               </div>
