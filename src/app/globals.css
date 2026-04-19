@@ -63,6 +63,15 @@
   --color-txt-2: var(--txt-2);
   --color-txt-3: var(--txt-3);
   --color-txt-4: var(--txt-4);
+  /* BraneZO tokens */
+  --color-branezo-accent: var(--branezo-accent);
+  --color-branezo-accent-dim: var(--branezo-accent-dim);
+  --color-branezo-user-bubble: var(--branezo-user-bubble);
+  --color-branezo-ai-bubble: var(--branezo-ai-bubble);
+  --color-diff-add: var(--diff-add);
+  --color-diff-remove: var(--diff-remove);
+  --color-diff-add-text: var(--diff-add-text);
+  --color-diff-remove-text: var(--diff-remove-text);
 }
 
 :root {
@@ -119,6 +128,16 @@
   --txt-3: #71717a;
   --txt-4: #52525b;
 
+  /* BraneZO tokens */
+  --branezo-accent: #4ade80;
+  --branezo-accent-dim: rgba(74, 222, 128, 0.12);
+  --branezo-user-bubble: #1a1a19;
+  --branezo-ai-bubble: #131312;
+  --diff-add: rgba(74, 222, 128, 0.12);
+  --diff-remove: rgba(239, 68, 68, 0.10);
+  --diff-add-text: #4ade80;
+  --diff-remove-text: #f87171;
+
   color-scheme: dark;
 }
 
@@ -154,4 +173,22 @@
 }
 .titlebar-no-drag {
   -webkit-app-region: no-drag;
+}
+
+/* Thin scrollbar variant */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.14);
+}
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }

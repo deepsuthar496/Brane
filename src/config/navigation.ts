@@ -8,6 +8,7 @@ import {
   Activity,
   ShoppingBag,
   BrainCircuit,
+  Bot,
   LucideIcon
 } from "lucide-react";
 
@@ -22,6 +23,7 @@ export type NavItem = {
 
 export const mainNav: NavItem[] = [
   { label: "Agents", icon: Monitor, href: "/", badge: "6" },
+  { label: "BraneZO", icon: Bot, href: "/branezo" },
   { label: "Agent Store", icon: ShoppingBag, href: "/store" },
   { label: "Knowledge", icon: BrainCircuit, href: "/knowledge" },
   { label: "Usage", icon: Activity, href: "/usage" },
