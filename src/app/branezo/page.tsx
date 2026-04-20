@@ -197,7 +197,7 @@ export default function BraneZOPage() {
         
         window.electronAPI.startBraneZOChat({
           id: currentSessionId,
-          messages: [...messages, userMsg].filter(m => m.content && m.content.trim() !== ""),
+          messages: [...messages, userMsg].filter(m => m.role === "user" ? (m.content && m.content.trim() !== "") : true),
           workspacePath: workspacePath,
           providerId: providerId,
           modelId: modelId,

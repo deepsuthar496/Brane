@@ -67,20 +67,61 @@ async function processMentions(messages, workspacePath) {
     const msg = messages[i];
     
     if (msg.role === "user") {
-      // Merge consecutive user messages to prevent 400 Bad Request for strict providers
+      const content = typeof msg.content === "string" ? msg.content : "";
       if (coreMessages.length > 0 && coreMessages[coreMessages.length - 1].role === "user") {
-        coreMessages[coreMessages.length - 1].content += "\n\n" + msg.content;
+        coreMessages[coreMessages.length - 1].content += "\n\n" + content;
       } else {
-        coreMessages.push({ role: "user", content: msg.content || "" });
+        coreMessages.push({ role: "user", content: content });
       }
     } else if (msg.role === "assistant") {
-      let content = msg.content || "";
-      if (msg.toolUse && Array.isArray(msg.toolUse)) {
-        for (const t of msg.toolUse) {
-           content += `\n\n[Tool Executed: ${t.toolName}]\nInput: ${typeof t.input === 'string' ? t.input : JSON.stringify(t.input)}\nResult: ${typeof t.output === 'string' ? t.output : JSON.stringify(t.output)}\n`;
+      // If content is already an array of parts, trust it (standard SDK format)
+      if (Array.isArray(msg.content)) {
+        coreMessages.push({ role: "assistant", content: msg.content });
+      } else {
+        // UI-style message: convert to parts
+        const assistantParts = [];
+        if (msg.content && typeof msg.content === "string") {
+          assistantParts.push({ type: "text", text: msg.content });
+        }
+
+        const toolResults = [];
+        if (msg.toolUse && Array.isArray(msg.toolUse)) {
+          for (const t of msg.toolUse) {
+            const callId = t.id || `call-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+            
+            assistantParts.push({
+              type: "tool-call",
+              toolCallId: callId,
+              toolName: t.toolName,
+              args: typeof t.input === "string" ? (() => { try { return JSON.parse(t.input); } catch(e) { return {}; } })() : (t.input || {}),
+            });
+
+            if (t.status === "success" || t.status === "error" || t.output) {
+              // AI SDK v6 requires output: { type: 'text', value: string } NOT result: string
+              toolResults.push({
+                type: "tool-result",
+                toolCallId: callId,
+                toolName: t.toolName,
+                output: {
+                  type: t.status === "error" ? "error-text" : "text",
+                  value: String(t.output || "Completed")
+                }
+              });
+            }
+          }
+        }
+
+        // Only push assistant message if it has content (text or tool calls)
+        if (assistantParts.length > 0) {
+          coreMessages.push({ role: "assistant", content: assistantParts });
+        }
+        if (toolResults.length > 0) {
+          coreMessages.push({ role: "tool", content: toolResults });
         }
       }
-      coreMessages.push({ role: "assistant", content: content.trim() });
+    } else if (msg.role === "tool") {
+      // Direct passthrough for tool result messages already in SDK format
+      coreMessages.push({ role: "tool", content: msg.content });
     }
   }
   
@@ -167,7 +208,15 @@ class AgentSession {
         system: (systemPrompt || DEFAULT_SYSTEM_PROMPT) + skillsPrompt,
         tools,
         maxSteps: 10,
+        toolChoice: "auto",
         abortSignal: abortController.signal,
+        experimental_repairToolCall: async ({ toolCall, error, tools }) => {
+          console.warn(`[BraneZO]: Repairing malformed tool call: ${toolCall.toolName}`, error);
+          if (toolCall.args === undefined || toolCall.args === null || toolCall.args === "") {
+            return { ...toolCall, args: "{}" };
+          }
+          return toolCall;
+        },
         onError: (error) => {
           console.error("\n[BraneZO SDK Error]:", error);
         },
@@ -178,6 +227,9 @@ class AgentSession {
           if (abortController.signal.aborted) break;
           
           switch (chunk.type) {
+            case "step-start":
+              console.log(`\n[BraneZO Step Start]`);
+              break;
             case "text-delta":
               const txtValue = chunk.textDelta || chunk.text || "";
               process.stdout.write(txtValue);
@@ -190,6 +242,9 @@ class AgentSession {
             case "tool-result":
               console.log(`\n[BraneZO Tool Result]: ${chunk.toolName} -> ${chunk.result?.error ? "ERROR" : "SUCCESS"}`);
               onToolResult({ id: chunk.toolCallId, name: chunk.toolName, result: chunk.result });
+              break;
+            case "step-finish":
+              console.log(`\n[BraneZO Step Finish]: ${chunk.finishReason}`);
               break;
             case "error":
               console.error("\n[BraneZO Stream ERROR]:", chunk.error);
@@ -231,4 +286,9 @@ class AgentSession {
   }
 }
 
-module.exports = new AgentSession();
+const sessionInstance = new AgentSession();
+sessionInstance.AgentSession = AgentSession;
+sessionInstance.processMentions = processMentions;
+sessionInstance.agentSession = sessionInstance; // Self-reference for test compatibility
+
+module.exports = sessionInstance;
