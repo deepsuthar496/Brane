@@ -1,6 +1,8 @@
 import { Agent, MCPServer } from "@/lib/data";
 
 export interface LogEntry {
+  id: string;
+  timestamp: number;
   level: string;
   source: string;
   message: string;
@@ -24,13 +26,13 @@ export interface ElectronAPI {
   addMcpServer: (id: string, config: unknown) => Promise<boolean>;
   removeMcpServer: (id: string) => Promise<boolean>;
   toggleMcpServer: (id: string, enabled: boolean) => Promise<boolean>;
-  fetchRegistryData: (urlPair: { skillsUrl: string; mcpsUrl: string }) => Promise<unknown>;
+  fetchRegistryData: <T = unknown>(url: any) => Promise<T>;
   installSkill: (skill: unknown) => Promise<boolean>;
   uninstallSkill: (id: string) => Promise<boolean>;
   installMcp: (mcp: unknown) => Promise<boolean>;
   uninstallMcp: (id: string) => Promise<boolean>;
-  getInstalledSkills: () => Promise<string[]>;
-  getInstalledMcps: () => Promise<string[]>;
+  getInstalledSkills: () => Promise<Record<string, any>>;
+  getInstalledMcps: () => Promise<Record<string, any>>;
   toggleSkill: (id: string, enabled: boolean) => Promise<boolean>;
   getAllCredentials: () => Promise<any[]>;
   saveCredential: (key: string, value: string) => Promise<boolean>;

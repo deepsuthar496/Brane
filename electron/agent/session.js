@@ -76,7 +76,7 @@ async function processMentions(messages, workspacePath) {
     } else if (msg.role === "assistant") {
       // If content is already an array of parts, trust it (standard SDK format)
       if (Array.isArray(msg.content)) {
-        coreMessages.push({ role: "assistant", content: msg.content });
+        coreMessages.push({ role: "assistant", content: msg.content.filter((part) => part.type !== "tool-approval-request" && part.type !== "tool-approval-response") });
       } else {
         // UI-style message: convert to parts
         const assistantParts = [];
@@ -92,7 +92,7 @@ async function processMentions(messages, workspacePath) {
             assistantParts.push({
               type: "tool-call",
               toolCallId: callId,
-              toolName: t.toolName,
+              toolName: t.toolName || "unknown_tool",
               args: typeof t.input === "string" ? (() => { try { return JSON.parse(t.input); } catch(e) { return {}; } })() : (t.input || {}),
             });
 
@@ -101,7 +101,7 @@ async function processMentions(messages, workspacePath) {
               toolResults.push({
                 type: "tool-result",
                 toolCallId: callId,
-                toolName: t.toolName,
+                toolName: t.toolName || "unknown_tool",
                 output: {
                   type: t.status === "error" ? "error-text" : "text",
                   value: String(t.output || "Completed")
@@ -121,7 +121,11 @@ async function processMentions(messages, workspacePath) {
       }
     } else if (msg.role === "tool") {
       // Direct passthrough for tool result messages already in SDK format
-      coreMessages.push({ role: "tool", content: msg.content });
+      if (Array.isArray(msg.content)) {
+        coreMessages.push({ role: "tool", content: msg.content.filter((part) => part.type !== "tool-approval-request" && part.type !== "tool-approval-response") });
+      } else {
+        coreMessages.push({ role: "tool", content: msg.content });
+      }
     }
   }
   

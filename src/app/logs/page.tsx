@@ -86,7 +86,7 @@ export default function LogsPage() {
       const matchesSearch = 
         log.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
         log.source.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (log.details && log.details.toLowerCase().includes(searchQuery.toLowerCase()));
+        (log.details && typeof log.details === "string" && log.details.toLowerCase().includes(searchQuery.toLowerCase()));
       
       const matchesLevel = levelFilter === "all" || log.level === levelFilter;
       
@@ -156,7 +156,7 @@ export default function LogsPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
-              <Select value={levelFilter} onValueChange={setLevelFilter}>
+              <Select value={levelFilter} onValueChange={(val) => setLevelFilter(val || "all")}>
                 <SelectTrigger className="w-[180px] h-10">
                   <div className="flex items-center gap-2">
                     <Filter className="size-4 text-muted-foreground" />
@@ -216,9 +216,9 @@ export default function LogsPage() {
                           <TableCell>
                             <div className="flex flex-col gap-1">
                               <span className="text-[13px] text-foreground leading-relaxed">{log.message}</span>
-                              {log.details && (
+                              {!!log.details && (
                                 <div className="mt-1 p-2 rounded bg-surface-3/50 border border-border/40 font-mono text-[11px] text-muted-foreground break-all">
-                                  {log.details}
+                                  {typeof log.details === "string" ? log.details : JSON.stringify(log.details)}
                                 </div>
                               )}
                             </div>
