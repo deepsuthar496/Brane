@@ -129,41 +129,212 @@ class ProviderManager {
                 try {
                   const body = JSON.parse(options.body);
                   if (body.messages) {
-                    body.input = body.messages.map(msg => {
-                      if (typeof msg.content === "string") {
-                        if (msg.role === "system") return { role: "system", content: msg.content };
-                        if (msg.role === "assistant") return { role: "assistant", content: [{ type: "output_text", text: msg.content }] };
-                        return { role: msg.role, content: [{ type: "input_text", text: msg.content }] };
-                      }
+                    const newInput = [];
+                    
+                    for (const msg of body.messages) {
+                      const { role, content } = msg;
                       
-                      // Map array contents
-                      if (Array.isArray(msg.content)) {
-                         const newContent = msg.content.map(part => {
-                            if (part.type === "text") return { type: msg.role === "assistant" ? "output_text" : "input_text", text: part.text };
-                            // Very basic tool-use mapping
-                            if (part.type === "tool_calls") return part; 
-                            return part;
-                         });
-                         return { role: msg.role, content: newContent };
+                      if (role === "system") {
+                        newInput.push({ role: "system", content: content });
+                      } else if (role === "user") {
+                        if (typeof content === "string") {
+                          newInput.push({ role: "user", content: [{ type: "input_text", text: content }] });
+                        } else if (Array.isArray(content)) {
+                          newInput.push({ 
+                            role: "user", 
+                            content: content.map(part => {
+                              if (part.type === "text") return { type: "input_text", text: part.text };
+                              return part;
+                            })
+                          });
+                        }
+                      } else if (role === "assistant") {
+                        // Handle text content
+                        if (typeof content === "string" && content.trim() !== "") {
+                           newInput.push({ role: "assistant", content: [{ type: "output_text", text: content }] });
+                        } else if (Array.isArray(content)) {
+                           // Vercel AI SDK content parts
+                           for (const part of content) {
+                             if (part.type === "text" && part.text.trim() !== "") {
+                               newInput.push({ role: "assistant", content: [{ type: "output_text", text: part.text }] });
+                             } else if (part.type === "tool-call") {
+                               newInput.push({
+                                 type: "function_call",
+                                 call_id: part.toolCallId,
+                                 name: part.toolName,
+                                 arguments: JSON.stringify(part.args || part.input || {})
+                               });
+                             }
+                           }
+                        }
+                        
+                        // Legacy/Standard tool_calls property
+                        if (msg.tool_calls) {
+                          for (const tc of msg.tool_calls) {
+                            newInput.push({
+                              type: "function_call",
+                              call_id: tc.id,
+                              name: tc.function?.name || tc.name,
+                              arguments: tc.function?.arguments || JSON.stringify(tc.args || {})
+                            });
+                          }
+                        }
+                      } else if (role === "tool") {
+                        // Tool results
+                        newInput.push({
+                          type: "function_call_output",
+                          call_id: msg.tool_call_id,
+                          output: typeof content === "string" ? content : JSON.stringify(content)
+                        });
                       }
-                      return msg;
-                    });
+                    }
+                    
+                    body.input = newInput;
                     delete body.messages;
                   }
+                  
                   if (body.max_tokens !== undefined) {
                     body.max_output_tokens = body.max_tokens;
                     delete body.max_tokens;
                   }
+
+                  // Map tools to Responses API format (flattened)
+                  if (body.tools && Array.isArray(body.tools)) {
+                    body.tools = body.tools.map(t => {
+                      if (t.type === "function" && t.function) {
+                        return {
+                          type: "function",
+                          name: t.function.name,
+                          description: t.function.description,
+                          parameters: t.function.parameters,
+                          strict: t.function.strict
+                        };
+                      }
+                      return t;
+                    });
+                  }
+                  
+                  // Responses API doesn't support 'stream: true' in the same way, 
+                  // but openai-compatible SDK expects it. 
+                  // We'll leave it as is unless it causes issues.
+
                   options.body = JSON.stringify(body);
                 } catch (err) {
                   console.error("Failed to parse/rewrite body for Codex API", err);
                 }
               }
               
-              return fetch(targetUrl, {
+              const resp = await fetch(targetUrl, {
                 ...options,
                 headers
               });
+
+              if (!resp.ok) return resp;
+
+              // Handle streaming response re-formatting
+              const contentType = resp.headers.get("content-type");
+              if (contentType && contentType.includes("text/event-stream")) {
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                const encoder = new TextEncoder();
+                let buffer = "";
+
+                const stream = new ReadableStream({
+                  async start() {
+                    this.hasToolCall = false;
+                  },
+                  async pull(controller) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                      controller.close();
+                      return;
+                    }
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split("\n");
+                    buffer = lines.pop() || "";
+
+                    for (const line of lines) {
+                      const trimmed = line.trim();
+                      if (!trimmed || !trimmed.startsWith("data: ")) continue;
+                      const dataStr = trimmed.slice(6).trim();
+                      if (dataStr === "[DONE]") {
+                        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                        continue;
+                      }
+
+                      try {
+                        const original = JSON.parse(dataStr);
+                        // console.log(`\n[Codex Raw Chunk]: ${JSON.stringify(original)}`);
+                        
+                        if (original.output) {
+                          for (const item of original.output) {
+                            const delta = { 
+                              id: original.id || `chatcmpl-${Date.now()}`,
+                              object: "chat.completion.chunk",
+                              created: Math.floor(Date.now() / 1000),
+                              model: original.model || "gpt-5.1-codex",
+                              choices: [{ index: 0, delta: {}, finish_reason: null }] 
+                            };
+                            
+                            if (item.type === "message" && item.content) {
+                              let text = "";
+                              for (const part of item.content) {
+                                if (part.type === "text") text += part.text;
+                              }
+                              if (text) {
+                                delta.choices[0].delta.content = text;
+                              }
+                            } else if (item.type === "function_call") {
+                              this.hasToolCall = true;
+                              delta.choices[0].delta.tool_calls = [{
+                                index: 0,
+                                id: item.call_id,
+                                type: "function",
+                                function: {
+                                  name: item.name,
+                                  arguments: typeof item.arguments === "string" ? item.arguments : JSON.stringify(item.arguments)
+                                }
+                              }];
+                            }
+                            
+                            if (Object.keys(delta.choices[0].delta).length > 0) {
+                              controller.enqueue(encoder.encode(`data: ${JSON.stringify(delta)}\n\n`));
+                            }
+                          }
+                        }
+                        
+                        // Handle completion signal
+                        if (original.status === "completed" || original.finish_reason === "stop") {
+                           const finalDelta = {
+                             id: original.id || `chatcmpl-${Date.now()}`,
+                             object: "chat.completion.chunk",
+                             created: Math.floor(Date.now() / 1000),
+                             model: original.model || "gpt-5.1-codex",
+                             choices: [{ 
+                               index: 0, 
+                               delta: {}, 
+                               finish_reason: this.hasToolCall ? "tool_calls" : "stop" 
+                             }]
+                           };
+                           controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalDelta)}\n\n`));
+                           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                        }
+                      } catch (e) {
+                        // Skip malformed chunks
+                      }
+                    }
+                  }
+                });
+
+                return new Response(stream, {
+                  headers: resp.headers,
+                  status: resp.status,
+                  statusText: resp.statusText
+                });
+              }
+
+              return resp;
             }
           });
         }

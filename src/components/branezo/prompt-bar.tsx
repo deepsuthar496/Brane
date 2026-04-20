@@ -62,6 +62,29 @@ export function PromptBar({
     startIdx: number;
   }>({ active: false, query: "", index: 0, startIdx: -1 });
 
+  const [slashCommandState, setSlashCommandState] = useState<{
+    active: boolean;
+    query: string;
+    index: number;
+    startIdx: number;
+  }>({ active: false, query: "", index: 0, startIdx: -1 });
+
+  const SLASH_COMMANDS = useMemo(() => [
+    { name: "clear", description: "Clear the current conversation", action: "clear" },
+    { name: "help", description: "Show help and available commands", action: "help" },
+    { name: "settings", description: "Open provider settings", action: "settings" },
+    { name: "model", description: "Change the active model", action: "model" },
+    { name: "terminal", description: "Open a new terminal session", action: "terminal" },
+    { name: "reset", description: "Reset the agent's context and memory", action: "reset" }
+  ], []);
+
+  const slashCommandItems = useMemo(() => {
+    if (!slashCommandState.active) return [];
+    return SLASH_COMMANDS
+      .filter(cmd => cmd.name.toLowerCase().includes(slashCommandState.query.toLowerCase()))
+      .slice(0, 10);
+  }, [slashCommandState.active, slashCommandState.query, SLASH_COMMANDS]);
+
   const flattenedFiles = useMemo(() => {
     const flat: { path: string, type: string }[] = [];
     function traverse(nodes: FileTreeNode[]) {
@@ -180,9 +203,10 @@ export function PromptBar({
     const cursor = e.target.selectionStart;
     const textBeforeCursor = val.substring(0, cursor);
     const lastAtIdx = textBeforeCursor.lastIndexOf("@");
+    const lastSlashIdx = textBeforeCursor.lastIndexOf("/");
     
     // Check if '@' exists and is either the first character or preceded by a space/newline
-    if (lastAtIdx !== -1 && (lastAtIdx === 0 || /[\s\n]/.test(textBeforeCursor[lastAtIdx - 1]))) {
+    if (lastAtIdx !== -1 && (lastAtIdx === 0 || /[\s\n]/.test(textBeforeCursor[lastAtIdx - 1])) && lastAtIdx > lastSlashIdx) {
       const query = textBeforeCursor.substring(lastAtIdx + 1);
       // Trigger if there are no spaces in the query (meaning we're still typing the path)
       // or if it's explicitly quoted @"some path"
@@ -194,11 +218,28 @@ export function PromptBar({
           index: 0,
           startIdx: lastAtIdx
         });
+        setSlashCommandState(prev => prev.active ? { ...prev, active: false } : prev);
+        return;
+      }
+    }
+
+    // Check for '/' slash command
+    if (lastSlashIdx === 0 || (lastSlashIdx !== -1 && /[\s\n]/.test(textBeforeCursor[lastSlashIdx - 1]) && lastSlashIdx > lastAtIdx)) {
+      const query = textBeforeCursor.substring(lastSlashIdx + 1);
+      if (!query.includes(" ")) {
+        setSlashCommandState({
+          active: true,
+          query,
+          index: 0,
+          startIdx: lastSlashIdx
+        });
+        setMentionState(prev => prev.active ? { ...prev, active: false } : prev);
         return;
       }
     }
     
     setMentionState(prev => prev.active ? { ...prev, active: false } : prev);
+    setSlashCommandState(prev => prev.active ? { ...prev, active: false } : prev);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -229,6 +270,44 @@ export function PromptBar({
       if (e.key === "Escape") {
         e.preventDefault();
         setMentionState(prev => ({ ...prev, active: false }));
+        return;
+      }
+    }
+
+    if (slashCommandState.active && slashCommandItems.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashCommandState(prev => ({ ...prev, index: Math.min(prev.index + 1, slashCommandItems.length - 1) }));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashCommandState(prev => ({ ...prev, index: Math.max(prev.index - 1, 0) }));
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const selected = slashCommandItems[slashCommandState.index];
+        if (selected) {
+           const before = value.substring(0, slashCommandState.startIdx);
+           const after = value.substring(textareaRef.current?.selectionStart || value.length);
+           setValue(`${before}/${selected.name} ${after}`);
+           setSlashCommandState(prev => ({ ...prev, active: false }));
+           
+           // Special actions that trigger immediately
+           if (selected.action === "settings") {
+             setValue("");
+             setShowSettings(true);
+           } else if (selected.action === "model") {
+             setValue("");
+             setShowModels(true);
+           }
+        }
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setSlashCommandState(prev => ({ ...prev, active: false }));
         return;
       }
     }
@@ -331,6 +410,57 @@ export function PromptBar({
                        {item.path}
                     </span>
                   </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Slash Command Menu */}
+        {slashCommandState.active && slashCommandItems.length > 0 && (
+          <div className="absolute bottom-full left-0 mb-2 w-full max-w-sm bg-card border border-border/50 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+            <div className="px-3 py-2 border-b border-border/40 bg-surface-2/30">
+              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Slash Commands
+              </span>
+            </div>
+            <div className="flex flex-col py-1 max-h-[240px] overflow-y-auto scrollbar-thin">
+              {slashCommandItems.map((item, i) => (
+                <button
+                  key={item.name}
+                  onClick={() => {
+                    const before = value.substring(0, slashCommandState.startIdx);
+                    const after = value.substring(textareaRef.current?.selectionStart || value.length);
+                    setValue(`${before}/${item.name} ${after}`);
+                    setSlashCommandState(prev => ({ ...prev, active: false }));
+                    textareaRef.current?.focus();
+                    
+                    if (item.action === "settings") {
+                      setValue("");
+                      setShowSettings(true);
+                    } else if (item.action === "model") {
+                      setValue("");
+                      setShowModels(true);
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center justify-between px-3 py-2 text-left transition-colors",
+                    i === slashCommandState.index
+                      ? "bg-primary/10 text-primary"
+                      : "text-foreground hover:bg-surface-2"
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                     <span className={cn(
+                       "text-[13px] font-mono",
+                       i === slashCommandState.index ? "font-bold" : "font-medium text-txt-2"
+                     )}>
+                        /{item.name}
+                     </span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground truncate">
+                    {item.description}
+                  </span>
                 </button>
               ))}
             </div>

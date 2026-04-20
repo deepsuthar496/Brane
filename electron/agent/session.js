@@ -29,6 +29,29 @@ const DEFAULT_SYSTEM_PROMPT = `You are BraneZO, a highly capable, autonomous AI 
 - When referencing file paths, use relative paths from the workspace root.
 - Keep your tone professional, helpful, and direct.`;
 
+async function getSkillsPrompt() {
+  try {
+    const appRoot = path.resolve(__dirname, "../../");
+    const skillsLockPath = path.join(appRoot, "skills-lock.json");
+    const lockData = await fs.readFile(skillsLockPath, "utf-8");
+    const lockJson = JSON.parse(lockData);
+    
+    if (!lockJson.installed || !lockJson.installed.skills) return "";
+    
+    const installedSkills = Object.keys(lockJson.installed.skills).filter(name => lockJson.installed.skills[name].enabled !== false);
+    if (installedSkills.length === 0) return "";
+    
+    let skillsXml = "\n\n<available_skills>\n";
+    for (const name of installedSkills) {
+      skillsXml += `  <skill>\n    <name>${name}</name>\n    <description>Specialized instructions for ${name} tasks.</description>\n  </skill>\n`;
+    }
+    skillsXml += "</available_skills>\n\nUse the `activate_skill` tool when a task matches a skill's description to load its workflow instructions.";
+    return skillsXml;
+  } catch (e) {
+    return "";
+  }
+}
+
 async function processMentions(messages, workspacePath) {
   if (!messages || messages.length === 0) return messages;
   
@@ -103,61 +126,126 @@ class AgentSession {
     try {
       const model = await providerManager.getModel(providerId, modelId);
       const tools = getTools(workspacePath);
-      const processedMessages = await processMentions(messages, workspacePath);
+      const skillsPrompt = await getSkillsPrompt();
+      
+      let currentMessages = await processMentions(messages, workspacePath);
+      let step = 0;
+      const MAX_STEPS = 10;
+      let finalMessages = [];
 
-      const result = streamText({
-        model,
-        messages: processedMessages,
-        system: systemPrompt || DEFAULT_SYSTEM_PROMPT,
-        tools,
-        abortSignal: abortController.signal,
-        maxSteps: 15, // Allow multiple tool turns automatically
-        onStepFinish: (event) => {
-           if (event.toolCalls && event.toolCalls.length > 0) {
-             for (const call of event.toolCalls) {
-               console.log(`\n[BraneZO Tool Call]: ${call.toolName}(${JSON.stringify(call.args)})`);
-               onToolCall({
-                 id: call.toolCallId,
-                 name: call.toolName,
-                 args: call.args
-               });
-             }
-           }
-           if (event.toolResults && event.toolResults.length > 0) {
-             for (const res of event.toolResults) {
-               console.log(`\n[BraneZO Tool Result]: ${res.toolName} -> ${res.result?.error ? "ERROR" : "SUCCESS"}`);
-               onToolResult({
-                 id: res.toolCallId,
-                 name: res.toolName,
-                 result: res.result
-               });
-             }
+      console.log(`\n[BraneZO]: Starting multi-step chat loop for session ${id}`);
+
+      while (step < MAX_STEPS) {
+        if (abortController.signal.aborted) break;
+        step++;
+        
+        console.log(`\n[BraneZO]: turn ${step}...`);
+
+        const result = streamText({
+          model,
+          messages: currentMessages,
+          system: (systemPrompt || DEFAULT_SYSTEM_PROMPT) + skillsPrompt,
+          tools,
+          abortSignal: abortController.signal,
+          maxSteps: 1, 
+        });
+
+        let assistantText = "";
+        let hasToolCallsInThisStep = false;
+        let toolCalls = [];
+        let toolResults = [];
+        let finishReason = "unknown";
+
+        try {
+          for await (const chunk of result.fullStream) {
+            if (abortController.signal.aborted) break;
+            
+            switch (chunk.type) {
+              case "text-delta":
+                process.stdout.write(chunk.textDelta || chunk.text || "");
+                onChunk(chunk.textDelta || chunk.text || "");
+                assistantText += (chunk.textDelta || chunk.text || "");
+                break;
+              case "tool-call":
+                hasToolCallsInThisStep = true;
+                toolCalls.push(chunk);
+                console.log(`\n[BraneZO Tool Call]: ${chunk.toolName}(${JSON.stringify(chunk.args)})`);
+                onToolCall({ id: chunk.toolCallId, name: chunk.toolName, args: chunk.args });
+                break;
+              case "tool-result":
+                toolResults.push(chunk);
+                console.log(`\n[BraneZO Tool Result]: ${chunk.toolName} -> ${chunk.result?.error ? "ERROR" : "SUCCESS"}`);
+                onToolResult({ id: chunk.toolCallId, name: chunk.toolName, result: chunk.result });
+                break;
+              case "finish":
+                finishReason = chunk.finishReason;
+                break;
+              case "error":
+                console.error("\n[BraneZO ERROR]:", chunk.error);
+                throw chunk.error;
+            }
+          }
+        } catch (streamErr) {
+          console.error("\n[BraneZO Stream Error]:", streamErr);
+          throw streamErr;
+        }
+
+        // Sync history
+        let assistantContent = [];
+        if (assistantText) {
+           assistantContent.push({ type: "text", text: assistantText });
+        }
+        
+        if (toolCalls.length > 0) {
+           for (const tc of toolCalls) {
+              assistantContent.push({
+                 type: "tool-call",
+                 toolCallId: tc.toolCallId,
+                 toolName: tc.toolName,
+                 args: tc.args
+              });
            }
         }
-      });
-
-      for await (const chunk of result.fullStream) {
-        if (abortController.signal.aborted) break;
         
-        switch (chunk.type) {
-          case "text-delta":
-            process.stdout.write(chunk.text || "");
-            onChunk(chunk.text || "");
-            break;
-          case "tool-call":
-            // Tool call started, but onStepFinish will handle the IPC event
-            break;
-          case "tool-result":
-            // Tool result arrived, but onStepFinish will handle the IPC event
-            break;
-          case "error":
-            console.error("\n[BraneZO ERROR]:", chunk.error);
-            throw chunk.error;
+        if (assistantContent.length > 0) {
+          currentMessages.push({
+            role: "assistant",
+            content: assistantContent,
+          });
+        } else {
+          currentMessages.push({
+            role: "assistant",
+            content: "",
+          });
+        }
+
+        if (toolResults.length > 0) {
+          const toolResultParts = toolResults.map(res => ({
+            type: "tool-result",
+            toolCallId: res.toolCallId,
+            toolName: res.toolName,
+            result: res.result
+          }));
+          
+          currentMessages.push({
+            role: "tool",
+            content: toolResultParts
+          });
+        }
+
+        finalMessages = currentMessages;
+
+        // OpenCode logic: If there were tool calls, ALWAYS continue the loop to feed results back.
+        // Break only if the model didn't call any tools (meaning it gave a final answer).
+        if (!hasToolCallsInThisStep) {
+          console.log(`\n[BraneZO]: finished naturally. Reason: ${finishReason}`);
+          break;
         }
       }
       
-      console.log("\n[BraneZO]: Response Complete."); // Ensure final newline
-      onFinish(await result.messages);
+      console.log("\n[BraneZO]: Response Complete.");
+      onFinish(finalMessages);
+
     } catch (e) {
       if (e.name !== 'AbortError') {
         onError(e);

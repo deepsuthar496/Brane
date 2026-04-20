@@ -182,6 +182,125 @@ const getTools = (workspacePath) => {
         }
       },
     }),
+
+    activate_skill: tool({
+      description: "Activates a specialized agent skill by name. Returns the skill's instructions wrapped in <activated_skill> tags. Use this when you identify a task that matches a skill's description in the <available_skills> block.",
+      parameters: z.object({
+        name: z.string().describe("The name of the skill to activate (e.g. 'deploy-to-vercel')."),
+      }),
+      execute: async ({ name }) => {
+        try {
+          // Skills are defined in Brane's central skills lockfile or directory
+          // Read from registry/skills/ to find the SKILL.md
+          // In a real app we'd parse the lockfile to get the exact path, but we can also just search for it or construct the path.
+          
+          const appRoot = path.resolve(__dirname, "../../"); 
+          const skillsLockPath = path.join(appRoot, "skills-lock.json");
+          let skillPath = null;
+          
+          try {
+             const lockData = await fs.readFile(skillsLockPath, "utf-8");
+             const lockJson = JSON.parse(lockData);
+             if (lockJson.installed && lockJson.installed.skills && lockJson.installed.skills[name]) {
+                skillPath = path.join(appRoot, lockJson.installed.skills[name].path);
+             }
+          } catch (e) {
+             console.error("Could not read skills-lock.json", e);
+          }
+          
+          // Fallback simple search if lockfile lookup fails
+          if (!skillPath) {
+             const fallbackPaths = await findFiles(path.join(appRoot, "registry", "skills"), "SKILL.md");
+             skillPath = fallbackPaths.find(p => p.includes(`/${name}/`) || p.includes(`\\${name}\\`));
+          }
+
+          if (!skillPath) {
+             return { error: `Skill '${name}' not found.` };
+          }
+          
+          const content = await fs.readFile(skillPath, "utf-8");
+          return { 
+            instructions: `<activated_skill name="${name}">\n  <instructions>\n${content}\n  </instructions>\n</activated_skill>`,
+            title: `Activated Skill: ${name}`
+          };
+        } catch (error) {
+           return { error: error.message };
+        }
+      },
+    }),
+
+    list_mcp_servers: tool({
+      description: "Lists all Model Context Protocol (MCP) servers currently enabled in the Brane Hub system.",
+      parameters: z.object({}),
+      execute: async () => {
+        try {
+          const mcpManager = require("../mcp-manager");
+          const servers = await mcpManager.getMcpServers();
+          const enabled = servers.filter(s => s.enabled);
+          return {
+            servers: enabled.map(s => ({
+              id: s.id,
+              name: s.name,
+              description: s.description,
+              isBuiltIn: s.isBuiltIn
+            })),
+            title: `Listed ${enabled.length} enabled MCP servers`
+          };
+        } catch (e) {
+          return { error: e.message };
+        }
+      },
+    }),
+
+    call_mcp_tool: tool({
+      description: "Invokes a specific tool on a configured MCP server. Note: Since this is a direct stdio call, it may take a few seconds to initialize.",
+      parameters: z.object({
+        serverId: z.string().describe("The ID of the MCP server to call (e.g. 'brane-knowledge')."),
+        toolName: z.string().describe("The name of the tool to execute."),
+        arguments: z.any().describe("The arguments to pass to the tool (JSON object)."),
+      }),
+      execute: async ({ serverId, toolName, arguments: args }) => {
+        try {
+          const mcpManager = require("../mcp-manager");
+          const servers = await mcpManager.getMcpServers();
+          const config = servers.find(s => s.id === serverId);
+          
+          if (!config) return { error: `MCP server '${serverId}' not found.` };
+          if (!config.enabled) return { error: `MCP server '${serverId}' is disabled.` };
+
+          // Simplified one-shot MCP stdio call for the prototype
+          // In a real implementation we'd maintain persistent client connections
+          // We wrap the stdio command into a JSON-RPC request
+          const jsonRpc = {
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: toolName,
+              arguments: args
+            }
+          };
+
+          const fullCommand = `${config.command} ${config.args.join(' ')}`;
+          const input = JSON.stringify(jsonRpc);
+          
+          // Use bash to pipe the input to the server command
+          // Note: This is an oversimplification; real MCP servers expect a handshake first.
+          // However, for Brane's built-in servers, we can bypass the handshake if they are designed to handle it.
+          const { stdout, stderr } = await execAsync(`echo '${input.replace(/'/g, "'\\''")}' | ${fullCommand}`, {
+             maxBuffer: 1024 * 1024 * 5
+          });
+
+          return {
+            result: stdout.toString().trim(),
+            stderr: stderr.toString().trim(),
+            title: `Called MCP Tool: ${serverId}:${toolName}`
+          };
+        } catch (e) {
+          return { error: e.message };
+        }
+      },
+    }),
   };
 };
 

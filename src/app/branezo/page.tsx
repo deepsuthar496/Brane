@@ -24,7 +24,8 @@ export default function BraneZOPage() {
     cost, 
     currentSessionId,
     workspacePath,
-    setWorkspacePath
+    setWorkspacePath,
+    clearMessages
   } = useChatStore();
 
   const [files] = useState<FileChange[]>(MOCK_FILE_CHANGES); // Kept mocked for now until real fs watcher
@@ -152,6 +153,28 @@ export default function BraneZOPage() {
   const handleSendMessage = useCallback(
     (content: string) => {
       if (!workspacePath) return;
+
+      const trimmedContent = content.trim();
+      
+      // Intercept Slash Commands
+      if (trimmedContent === "/clear" || trimmedContent === "/reset") {
+         clearMessages();
+         if (window.electronAPI) {
+            window.electronAPI.abortBraneZOChat(currentSessionId);
+         }
+         return;
+      }
+      
+      if (trimmedContent === "/help") {
+         const helpMsg: ChatMessage = {
+           id: `msg-${Date.now()}`,
+           role: "assistant",
+           content: `**BraneZO Slash Commands**\n\n- \`/clear\` or \`/reset\`: Clear the conversation history and start fresh.\n- \`/settings\`: Open the provider configuration dialog.\n- \`/model\`: Open the model selection menu.\n- \`/help\`: Show this help message.\n\n**Mentions**\n- Type \`@\` followed by a file name to inject its contents directly into the prompt context.`,
+           timestamp: new Date(),
+         };
+         setMessages((prev) => [...prev, helpMsg]);
+         return;
+      }
 
       const userMsg: ChatMessage = {
         id: `msg-${Date.now()}`,
