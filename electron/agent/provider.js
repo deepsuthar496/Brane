@@ -185,10 +185,13 @@ class ProviderManager {
                         if (Array.isArray(content)) {
                           for (const part of content) {
                             if (part.type === "tool-result") {
+                              const outVal = part.output && typeof part.output === "object" && "value" in part.output
+                                ? part.output.value
+                                : part.output || part.result;
                               newInput.push({
                                 type: "function_call_output",
                                 call_id: part.toolCallId,
-                                output: typeof part.result === "string" ? part.result : JSON.stringify(part.result)
+                                output: typeof outVal === "string" ? outVal : JSON.stringify(outVal || "Completed")
                               });
                             }
                           }
@@ -306,7 +309,7 @@ class ProviderManager {
                                 id: item.call_id,
                                 type: "function",
                                 function: {
-                                  name: item.name,
+                                  ...(item.name ? { name: item.name } : {}),
                                   arguments: typeof item.arguments === "string" ? item.arguments : JSON.stringify(item.arguments)
                                 }
                               }];

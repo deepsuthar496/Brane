@@ -92,7 +92,7 @@ async function processMentions(messages, workspacePath) {
             assistantParts.push({
               type: "tool-call",
               toolCallId: callId,
-              toolName: t.toolName,
+              toolName: t.toolName || "unknown_tool",
               args: typeof t.input === "string" ? (() => { try { return JSON.parse(t.input); } catch(e) { return {}; } })() : (t.input || {}),
             });
 
@@ -101,11 +101,13 @@ async function processMentions(messages, workspacePath) {
               toolResults.push({
                 type: "tool-result",
                 toolCallId: callId,
-                toolName: t.toolName,
+                toolName: t.toolName || "unknown_tool",
+                result: t.output || "Completed",
                 output: {
                   type: t.status === "error" ? "error-text" : "text",
                   value: String(t.output || "Completed")
-                }
+                },
+                isError: t.status === "error"
               });
             }
           }
