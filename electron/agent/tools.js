@@ -39,12 +39,16 @@ async function findFiles(dir, pattern, root = dir) {
 const getTools = (workspacePath) => {
   return {
     read_file: tool({
-      description: "Read the contents of a file in the workspace.",
+      description: "Read the contents of a file in the workspace. Use this to understand code before making changes.",
       parameters: z.object({
         path: z.string().describe("Path to the file relative to the workspace root."),
       }),
-      execute: async ({ path: relativePath }) => {
+      execute: async (args) => {
+        const relativePath = args?.path;
         try {
+          if (!relativePath || relativePath.trim() === "") {
+            return { error: "path is required. Provide a valid file path relative to the workspace root." };
+          }
           const absPath = path.resolve(workspacePath, relativePath);
           if (!absPath.startsWith(path.resolve(workspacePath))) {
             return { error: "Access denied. Path is outside the workspace." };
@@ -63,8 +67,13 @@ const getTools = (workspacePath) => {
         path: z.string().describe("Path to the file relative to the workspace root."),
         content: z.string().describe("The entire new content of the file."),
       }),
-      execute: async ({ path: relativePath, content }) => {
+      execute: async (args) => {
+        const relativePath = args?.path;
+        const content = args?.content;
         try {
+          if (!relativePath || relativePath.trim() === "") {
+            return { error: "path is required. Provide a valid file path relative to the workspace root." };
+          }
           const absPath = path.resolve(workspacePath, relativePath);
           if (!absPath.startsWith(path.resolve(workspacePath))) {
             return { error: "Access denied. Path is outside the workspace." };
@@ -85,8 +94,14 @@ const getTools = (workspacePath) => {
         old_string: z.string().describe("The EXACT old string to replace. Must match perfectly, including whitespace and indentation."),
         new_string: z.string().describe("The new string to insert in place of old_string."),
       }),
-      execute: async ({ path: relativePath, old_string, new_string }) => {
+      execute: async (args) => {
+        const relativePath = args?.path;
+        const old_string = args?.old_string;
+        const new_string = args?.new_string;
         try {
+          if (!relativePath || !old_string || new_string === undefined) {
+             return { error: "path, old_string, and new_string are all required arguments." };
+          }
           const absPath = path.resolve(workspacePath, relativePath);
           if (!absPath.startsWith(path.resolve(workspacePath))) {
             return { error: "Access denied. Path is outside the workspace." };
@@ -113,8 +128,10 @@ const getTools = (workspacePath) => {
       parameters: z.object({
         pattern: z.string().describe("The text or pattern to match against file paths."),
       }),
-      execute: async ({ pattern }) => {
+      execute: async (args) => {
+        const pattern = args?.pattern;
         try {
+          if (!pattern) return { error: "pattern is required" };
           const files = await findFiles(workspacePath, pattern);
           const relativeFiles = files.map(f => path.relative(workspacePath, f).replace(/\\/g, '/'));
           return { files: relativeFiles.slice(0, 100), title: `Found ${relativeFiles.length} files matching '${pattern}'` };
@@ -130,8 +147,11 @@ const getTools = (workspacePath) => {
         pattern: z.string().describe("The text string or regex to search for in file contents."),
         path: z.string().optional().describe("Optional relative path to restrict the search (e.g., 'src/components')."),
       }),
-      execute: async ({ pattern, path: searchPath = "." }) => {
+      execute: async (args) => {
+        const pattern = args?.pattern;
+        const searchPath = args?.path || ".";
         try {
+          if (!pattern) return { error: "pattern is required" };
           const isWin = process.platform === "win32";
           let cmd = '';
           const safePattern = pattern.replace(/"/g, '\\"');
@@ -157,12 +177,17 @@ const getTools = (workspacePath) => {
     }),
 
     run_bash: tool({
-      description: "Run a shell/terminal command in the workspace directory. Use this to run tests, git commands, npm installs, builds, etc.",
+      description: "Run a shell/terminal command in the workspace directory. Use this ONLY for terminal operations like running tests, git commands, npm scripts, build tools, linters, and other CLI tools. Do NOT use this tool if you just need to respond to the user with text — use a normal text response instead. Do NOT use this for reading or writing files — use the dedicated file tools instead. The 'command' argument is REQUIRED and must be a valid shell command string.",
       parameters: z.object({
-        command: z.string().describe("The command line to run."),
+        command: z.string().describe("The command line to run. REQUIRED — must be a non-empty, valid shell command."),
       }),
-      execute: async ({ command }) => {
+      execute: async (args) => {
+        const command = args?.command;
         try {
+          // Critical validation: reject empty/undefined commands
+          if (!command || typeof command !== 'string' || command.trim() === "") {
+            return { error: "command is required. You must provide a valid, non-empty shell command string. If you don't need to run a terminal command, respond with text instead of calling this tool." };
+          }
           const { stdout, stderr } = await execAsync(command, { 
             cwd: workspacePath,
             maxBuffer: 1024 * 1024 * 10 // 10MB
@@ -188,7 +213,8 @@ const getTools = (workspacePath) => {
       parameters: z.object({
         name: z.string().describe("The name of the skill to activate (e.g. 'deploy-to-vercel')."),
       }),
-      execute: async ({ name }) => {
+      execute: async (args) => {
+        const name = args?.name;
         try {
           // Skills are defined in Brane's central skills lockfile or directory
           // Read from registry/skills/ to find the SKILL.md

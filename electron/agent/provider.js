@@ -31,7 +31,7 @@ class ProviderManager {
     this.providers = new Map();
   }
 
-  async getProvider(providerId) {
+  async getProvider(providerId, overrideApiKey) {
     const registry = await modelsRegistry.getRegistry();
     const providerConfig = registry[providerId];
 
@@ -39,6 +39,7 @@ class ProviderManager {
 
     // Helper to resolve API key from keychain or env
     const resolveKey = (envVars = []) => {
+      if (overrideApiKey && overrideApiKey !== "dummy_key") return overrideApiKey;
       for (const envKey of envVars) {
         const hit = credentials.find(c => c.envVar === envKey)?.value || process.env[envKey];
         if (hit) return hit;
@@ -50,12 +51,12 @@ class ProviderManager {
     if (!providerConfig) {
       if (providerId === "custom") {
         const customBaseUrl = credentials.find(c => c.envVar === "CUSTOM_API_BASE_URL")?.value || "http://localhost:11434/v1";
-        const customKey = credentials.find(c => c.envVar === "CUSTOM_API_KEY")?.value;
+        const customKey = overrideApiKey && overrideApiKey !== "dummy_key" ? overrideApiKey : (credentials.find(c => c.envVar === "CUSTOM_API_KEY")?.value || "local");
         // Use openai-compatible — the ONLY correct choice for arbitrary proxies
         return createOpenAICompatible({
           name: "custom",
           baseURL: customBaseUrl,
-          apiKey: customKey && customKey !== "dummy_key" ? customKey : "local",
+          apiKey: customKey,
         });
       }
       throw new Error(`Provider "${providerId}" not found in models.dev registry.`);
@@ -181,11 +182,24 @@ class ProviderManager {
                         }
                       } else if (role === "tool") {
                         // Tool results
-                        newInput.push({
-                          type: "function_call_output",
-                          call_id: msg.tool_call_id,
-                          output: typeof content === "string" ? content : JSON.stringify(content)
-                        });
+                        if (Array.isArray(content)) {
+                          for (const part of content) {
+                            if (part.type === "tool-result") {
+                              newInput.push({
+                                type: "function_call_output",
+                                call_id: part.toolCallId,
+                                output: typeof part.result === "string" ? part.result : JSON.stringify(part.result)
+                              });
+                            }
+                          }
+                        } else {
+                          // Fallback for legacy format
+                          newInput.push({
+                            type: "function_call_output",
+                            call_id: msg.tool_call_id,
+                            output: typeof content === "string" ? content : JSON.stringify(content)
+                          });
+                        }
                       }
                     }
                     
@@ -349,8 +363,8 @@ class ProviderManager {
     }
   }
 
-  async getModel(providerId, modelId) {
-    const provider = await this.getProvider(providerId);
+  async getModel(providerId, modelId, apiKey) {
+    const provider = await this.getProvider(providerId, apiKey);
     // All providers expose .languageModel() or are callable directly
     if (typeof provider.languageModel === "function") {
       return provider.languageModel(modelId);

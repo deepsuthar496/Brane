@@ -33,7 +33,7 @@ async function getAllCredentials() {
 
     let decryptedValue = null;
     if (value && typeof value === "object" && value.encrypted) {
-      if (safeStorage.isEncryptionAvailable()) {
+      if (safeStorage && safeStorage.isEncryptionAvailable()) {
         try {
           const buffer = Buffer.from(value.data, "hex");
           decryptedValue = safeStorage.decryptString(buffer);

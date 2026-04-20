@@ -9,13 +9,18 @@ const DEFAULT_SYSTEM_PROMPT = `You are BraneZO, a highly capable, autonomous AI 
 # Core Identity
 - You are an expert software engineer.
 - You have direct access to the user's workspace filesystem and terminal.
-- You are proactive and action-oriented. You don't just explain how to fix things; you use your tools to explore the codebase, write code, run tests, and fix errors yourself.
+- You are proactive and action-oriented. When a coding task is requested, you use your tools to explore the codebase, write code, run tests, and fix errors yourself.
 
-# Tool Usage & Methodology
-- ALWAYS use the provided tools to interact with the system.
+# When to Use Tools vs. When to Respond with Text
+- For greetings, general questions, explanations, brainstorming, or any conversational message: **respond with text only**. Do NOT call any tools.
+- For coding tasks (fixing bugs, writing code, reading files, running commands): use the appropriate tools.
+- If unsure whether a tool is needed, default to a text response and ask the user for clarification.
+- NEVER call a tool without a clear, specific purpose. Each tool call MUST have valid, complete arguments.
+
+# Tool Usage & Methodology (for coding tasks only)
 - Before editing code, always use \`read_file\` or \`grep_search\` to understand the surrounding context.
 - When making targeted changes, prefer \`edit_file\` (replace) over overwriting the entire file, unless it's a new file or a complete rewrite.
-- Use \`run_bash\` to run tests, linters, git commands, and build scripts.
+- Use \`run_bash\` ONLY for terminal operations (tests, linters, git commands, build scripts, npm commands). NEVER use \`run_bash\` without a specific command string.
 - Chain your tool calls effectively. For example, search for a symbol, read the file, edit the file, and then run a linter or test suite to verify the change.
 
 # Execution Guidelines
@@ -53,12 +58,36 @@ async function getSkillsPrompt() {
 }
 
 async function processMentions(messages, workspacePath) {
-  if (!messages || messages.length === 0) return messages;
+  if (!messages || messages.length === 0) return [];
   
-  const processedMessages = [...messages];
+  // Transform Frontend UI ChatMessages (which contain .toolUse) into Vercel SDK CoreMessages
+  const coreMessages = [];
+  
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    
+    if (msg.role === "user") {
+      // Merge consecutive user messages to prevent 400 Bad Request for strict providers
+      if (coreMessages.length > 0 && coreMessages[coreMessages.length - 1].role === "user") {
+        coreMessages[coreMessages.length - 1].content += "\n\n" + msg.content;
+      } else {
+        coreMessages.push({ role: "user", content: msg.content || "" });
+      }
+    } else if (msg.role === "assistant") {
+      let content = msg.content || "";
+      if (msg.toolUse && Array.isArray(msg.toolUse)) {
+        for (const t of msg.toolUse) {
+           content += `\n\n[Tool Executed: ${t.toolName}]\nInput: ${typeof t.input === 'string' ? t.input : JSON.stringify(t.input)}\nResult: ${typeof t.output === 'string' ? t.output : JSON.stringify(t.output)}\n`;
+        }
+      }
+      coreMessages.push({ role: "assistant", content: content.trim() });
+    }
+  }
+  
+  const processedMessages = [...coreMessages];
   const latestMessage = processedMessages[processedMessages.length - 1];
   
-  if (latestMessage.role === "user" && typeof latestMessage.content === "string") {
+  if (latestMessage && latestMessage.role === "user" && typeof latestMessage.content === "string") {
     const quotedRegex = /(^|\s)@"([^"]+)"/g;
     const regularRegex = /(^|\s)@([^\s]+)\b/g;
     
@@ -124,127 +153,65 @@ class AgentSession {
     this.activeStreams.set(id, abortController);
 
     try {
-      const model = await providerManager.getModel(providerId, modelId);
+      const model = await providerManager.getModel(providerId, modelId, apiKey);
       const tools = getTools(workspacePath);
       const skillsPrompt = await getSkillsPrompt();
       
       let currentMessages = await processMentions(messages, workspacePath);
-      let step = 0;
-      const MAX_STEPS = 10;
-      let finalMessages = [];
 
-      console.log(`\n[BraneZO]: Starting multi-step chat loop for session ${id}`);
+      console.log(`\n[BraneZO]: Starting chat for session ${id}`);
 
-      while (step < MAX_STEPS) {
-        if (abortController.signal.aborted) break;
-        step++;
-        
-        console.log(`\n[BraneZO]: turn ${step}...`);
+      const result = streamText({
+        model,
+        messages: currentMessages,
+        system: (systemPrompt || DEFAULT_SYSTEM_PROMPT) + skillsPrompt,
+        tools,
+        maxSteps: 10,
+        abortSignal: abortController.signal,
+        onError: (error) => {
+          console.error("\n[BraneZO SDK Error]:", error);
+        },
+      });
 
-        const result = streamText({
-          model,
-          messages: currentMessages,
-          system: (systemPrompt || DEFAULT_SYSTEM_PROMPT) + skillsPrompt,
-          tools,
-          abortSignal: abortController.signal,
-          maxSteps: 1, 
-        });
-
-        let assistantText = "";
-        let hasToolCallsInThisStep = false;
-        let toolCalls = [];
-        let toolResults = [];
-        let finishReason = "unknown";
-
-        try {
-          for await (const chunk of result.fullStream) {
-            if (abortController.signal.aborted) break;
-            
-            switch (chunk.type) {
-              case "text-delta":
-                process.stdout.write(chunk.textDelta || chunk.text || "");
-                onChunk(chunk.textDelta || chunk.text || "");
-                assistantText += (chunk.textDelta || chunk.text || "");
-                break;
-              case "tool-call":
-                hasToolCallsInThisStep = true;
-                toolCalls.push(chunk);
-                console.log(`\n[BraneZO Tool Call]: ${chunk.toolName}(${JSON.stringify(chunk.args)})`);
-                onToolCall({ id: chunk.toolCallId, name: chunk.toolName, args: chunk.args });
-                break;
-              case "tool-result":
-                toolResults.push(chunk);
-                console.log(`\n[BraneZO Tool Result]: ${chunk.toolName} -> ${chunk.result?.error ? "ERROR" : "SUCCESS"}`);
-                onToolResult({ id: chunk.toolCallId, name: chunk.toolName, result: chunk.result });
-                break;
-              case "finish":
-                finishReason = chunk.finishReason;
-                break;
-              case "error":
-                console.error("\n[BraneZO ERROR]:", chunk.error);
-                throw chunk.error;
-            }
-          }
-        } catch (streamErr) {
-          console.error("\n[BraneZO Stream Error]:", streamErr);
-          throw streamErr;
-        }
-
-        // Sync history
-        let assistantContent = [];
-        if (assistantText) {
-           assistantContent.push({ type: "text", text: assistantText });
-        }
-        
-        if (toolCalls.length > 0) {
-           for (const tc of toolCalls) {
-              assistantContent.push({
-                 type: "tool-call",
-                 toolCallId: tc.toolCallId,
-                 toolName: tc.toolName,
-                 args: tc.args
-              });
-           }
-        }
-        
-        if (assistantContent.length > 0) {
-          currentMessages.push({
-            role: "assistant",
-            content: assistantContent,
-          });
-        } else {
-          currentMessages.push({
-            role: "assistant",
-            content: "",
-          });
-        }
-
-        if (toolResults.length > 0) {
-          const toolResultParts = toolResults.map(res => ({
-            type: "tool-result",
-            toolCallId: res.toolCallId,
-            toolName: res.toolName,
-            result: res.result
-          }));
+      try {
+        for await (const chunk of result.fullStream) {
+          if (abortController.signal.aborted) break;
           
-          currentMessages.push({
-            role: "tool",
-            content: toolResultParts
-          });
+          switch (chunk.type) {
+            case "text-delta":
+              const txtValue = chunk.textDelta || chunk.text || "";
+              process.stdout.write(txtValue);
+              onChunk(txtValue);
+              break;
+            case "tool-call":
+              console.log(`\n[BraneZO Tool Call]: ${chunk.toolName}(${JSON.stringify(chunk.args)})`);
+              onToolCall({ id: chunk.toolCallId, name: chunk.toolName, args: chunk.args });
+              break;
+            case "tool-result":
+              console.log(`\n[BraneZO Tool Result]: ${chunk.toolName} -> ${chunk.result?.error ? "ERROR" : "SUCCESS"}`);
+              onToolResult({ id: chunk.toolCallId, name: chunk.toolName, result: chunk.result });
+              break;
+            case "error":
+              console.error("\n[BraneZO Stream ERROR]:", chunk.error);
+              throw chunk.error;
+          }
         }
-
-        finalMessages = currentMessages;
-
-        // OpenCode logic: If there were tool calls, ALWAYS continue the loop to feed results back.
-        // Break only if the model didn't call any tools (meaning it gave a final answer).
-        if (!hasToolCallsInThisStep) {
-          console.log(`\n[BraneZO]: finished naturally. Reason: ${finishReason}`);
-          break;
+      } catch (streamErr) {
+        if (streamErr?.name === 'AbortError' || abortController.signal.aborted) {
+          console.log("\n[BraneZO]: Aborted.");
+          return;
         }
+        console.error("\n[BraneZO Stream Fatal Error]:", streamErr);
+        throw streamErr;
       }
+
+      if (abortController.signal.aborted) return;
       
+      const finalResponse = await result.response;
       console.log("\n[BraneZO]: Response Complete.");
-      onFinish(finalMessages);
+      
+      // Pass the updated messages array to the frontend
+      onFinish([...currentMessages, ...finalResponse.messages]);
 
     } catch (e) {
       if (e.name !== 'AbortError') {
