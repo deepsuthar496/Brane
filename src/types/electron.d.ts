@@ -5,6 +5,8 @@ export interface LogEntry {
   source: string;
   message: string;
   details?: unknown;
+  timestamp: string | Date;
+  id: string;
 }
 
 export interface ElectronAPI {
@@ -24,14 +26,14 @@ export interface ElectronAPI {
   addMcpServer: (id: string, config: unknown) => Promise<boolean>;
   removeMcpServer: (id: string) => Promise<boolean>;
   toggleMcpServer: (id: string, enabled: boolean) => Promise<boolean>;
-  fetchRegistryData: (urlPair: { skillsUrl: string; mcpsUrl: string }) => Promise<unknown>;
-  installSkill: (skill: unknown) => Promise<boolean>;
-  uninstallSkill: (id: string) => Promise<boolean>;
-  installMcp: (mcp: unknown) => Promise<boolean>;
-  uninstallMcp: (id: string) => Promise<boolean>;
-  getInstalledSkills: () => Promise<string[]>;
-  getInstalledMcps: () => Promise<string[]>;
-  toggleSkill: (id: string, enabled: boolean) => Promise<boolean>;
+  fetchRegistryData: <T = unknown>(urlPair: { skillsUrl?: string; mcpsUrl?: string; cdn?: string; fallback?: string } | string) => Promise<T>;
+  installSkill: (skill: unknown) => Promise<{ success: boolean; error?: string }>;
+  uninstallSkill: (id: string) => Promise<{ success: boolean; error?: string }>;
+  installMcp: (mcp: unknown) => Promise<{ success: boolean; error?: string }>;
+  uninstallMcp: (id: string) => Promise<{ success: boolean; error?: string }>;
+  getInstalledSkills: () => Promise<any>;
+  getInstalledMcps: () => Promise<any>;
+  toggleSkill: (id: string, enabled: boolean) => Promise<{ success: boolean; error?: string }>;
   getAllCredentials: () => Promise<any[]>;
   saveCredential: (key: string, value: string) => Promise<boolean>;
   deleteCredential: (key: string) => Promise<boolean>;

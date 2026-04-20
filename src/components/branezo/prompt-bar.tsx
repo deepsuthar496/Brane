@@ -601,7 +601,7 @@ export function PromptBar({
                 {filteredModels.length === 0 ? (
                    <div className="px-4 py-3 text-xs text-muted-foreground text-center">No models found</div>
                 ) : (
-                  Object.entries(groupedModels).map(([providerId, group]) => (
+                  Object.entries(groupedModels).map(([providerId, group]: [string, any]) => (
                     <div key={providerId} className="mb-3 last:mb-1">
                       <div className="px-3 py-1.5 flex items-center gap-2 mb-0.5">
                         {providerId === 'custom' || providerId === 'local' || providerId === 'other' ? (
@@ -624,7 +624,7 @@ export function PromptBar({
                         )}
                       </div>
                       <div className="flex flex-col">
-                        {group.models.map((m) => (
+                        {group.models.map((m: any) => (
                           <button
                             key={m.id}
                             onClick={() => {
