@@ -217,7 +217,7 @@ class AgentSession {
         experimental_repairToolCall: async ({ toolCall, error, tools }) => {
           console.warn(`[BraneZO]: Repairing malformed tool call: ${toolCall.toolName}`, error);
           if (toolCall.args === undefined || toolCall.args === null || toolCall.args === "") {
-            return { ...toolCall, args: "{}" };
+            return { ...toolCall, args: {} };
           }
           return toolCall;
         },

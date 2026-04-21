@@ -257,7 +257,9 @@ const getTools = (workspacePath) => {
 
     list_mcp_servers: tool({
       description: "Lists all Model Context Protocol (MCP) servers currently enabled in the Brane Hub system.",
-      parameters: z.object({}),
+      parameters: z.object({
+        _meta: z.string().optional().describe("Optional metadata or context.")
+      }),
       execute: async () => {
         try {
           const mcpManager = require("../mcp-manager");
