@@ -9,7 +9,7 @@ async function test() {
       role: 'assistant', 
       content: 'Let me read it.',
       toolUse: [
-        { id: 'call-1', toolName: 'read_file', input: { path: 'package.json' }, status: 'success', output: 'Contents of package.json' }
+        { id: 'call-1', toolName: undefined, input: { path: 'package.json' }, status: 'success', output: 'Contents of package.json' }
       ]
     }
   ];

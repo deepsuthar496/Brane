@@ -103,7 +103,7 @@ export default function SkillsPage() {
   const handleInstall = async (skill: SkillEntry) => {
     if (window.electronAPI) {
       const result = await window.electronAPI.installSkill(skill);
-      if (result.success) {
+      if (result === true || (typeof result === "object" && result !== null && (result as any).success)) {
         await fetchInstalled();
       }
     }
@@ -112,7 +112,7 @@ export default function SkillsPage() {
   const handleToggle = async (id: string, enabled: boolean) => {
     if (window.electronAPI) {
       const result = await window.electronAPI.toggleSkill(id, enabled);
-      if (result.success) {
+      if (result === true || (typeof result === "object" && result !== null && (result as any).success)) {
         await fetchInstalled();
       }
     }
@@ -123,7 +123,7 @@ export default function SkillsPage() {
     
     if (window.electronAPI) {
       const result = await window.electronAPI.uninstallSkill(id);
-      if (result.success) {
+      if (result === true || (typeof result === "object" && result !== null && (result as any).success)) {
         await fetchInstalled();
       }
     }

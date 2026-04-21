@@ -166,7 +166,7 @@ export default function MCPPage() {
 
     if (window.electronAPI) {
       const result = await window.electronAPI.installMcp(mcp);
-      if (result.success) {
+      if (result === true || (typeof result === "object" && result !== null && (result as any).success)) {
         await loadServers();
       }
     }
@@ -202,7 +202,7 @@ export default function MCPPage() {
     });
 
     const result = await window.electronAPI.installMcp(preparedMcp);
-    if (result.success) {
+    if (result === true || (typeof result === "object" && result !== null && (result as any).success)) {
       await loadServers();
       setIsCredDialogOpen(false);
       setMcpToInstall(null);

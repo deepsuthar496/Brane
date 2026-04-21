@@ -605,12 +605,12 @@ export function PromptBar({
                     <div key={providerId} className="mb-3 last:mb-1">
                       <div className="px-3 py-1.5 flex items-center gap-2 mb-0.5">
                         {providerId === 'custom' || providerId === 'local' || providerId === 'other' ? (
-                          <span className="text-[11px] font-semibold text-muted-foreground">{group.name}</span>
+                          <span className="text-[11px] font-semibold text-muted-foreground">{(group as any).name}</span>
                         ) : (
                           <>
                             <img 
                               src={`https://models.dev/logos/${providerId}.svg`} 
-                              alt={group.name} 
+                              alt={(group as any).name} 
                               className="w-4 h-4 object-contain opacity-70" 
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none';
@@ -619,12 +619,12 @@ export function PromptBar({
                                 }
                               }}
                             />
-                            <span className="text-[11px] font-semibold text-muted-foreground">{group.name}</span>
+                            <span className="text-[11px] font-semibold text-muted-foreground">{(group as any).name}</span>
                           </>
                         )}
                       </div>
                       <div className="flex flex-col">
-                        {group.models.map((m) => (
+                        {(group as any).models.map((m: any) => (
                           <button
                             key={m.id}
                             onClick={() => {
