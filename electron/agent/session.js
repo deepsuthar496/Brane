@@ -89,11 +89,15 @@ async function processMentions(messages, workspacePath) {
           for (const t of msg.toolUse) {
             const callId = t.id || `call-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
             
+            let parsedArgs = typeof t.input === "string" ? (() => { try { return JSON.parse(t.input); } catch(e) { return {}; } })() : (t.input || {});
+            if (parsedArgs === null || Object.keys(parsedArgs).length === 0) {
+              parsedArgs = {}; // Ensure it's a valid object
+            }
             assistantParts.push({
               type: "tool-call",
               toolCallId: callId,
               toolName: t.toolName || "unknown_tool",
-              args: typeof t.input === "string" ? (() => { try { return JSON.parse(t.input); } catch(e) { return {}; } })() : (t.input || {}),
+              args: parsedArgs,
             });
 
             if (t.status === "success" || t.status === "error" || t.output) {
