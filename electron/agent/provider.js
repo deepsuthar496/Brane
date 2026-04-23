@@ -3,6 +3,8 @@ const { createOpenAICompatible } = require("@ai-sdk/openai-compatible");
 const { createOpenRouter } = require("@openrouter/ai-sdk-provider");
 const { createAnthropic } = require("@ai-sdk/anthropic");
 const { createGoogleGenerativeAI } = require("@ai-sdk/google");
+const { createCerebras } = require("@ai-sdk/cerebras");
+const { createGroq } = require("@ai-sdk/groq");
 const credentialsManager = require("../credentials-manager");
 const modelsRegistry = require("../models-registry");
 
@@ -77,6 +79,61 @@ class ProviderManager {
       case "@ai-sdk/google":
         return createGoogleGenerativeAI({ apiKey: resolvedKey });
 
+      case "@ai-sdk/cerebras":
+        return createCerebras({
+          apiKey: resolvedKey,
+          headers: { "X-Cerebras-3rd-Party-Integration": "opencode" },
+          fetch: async (url, options) => {
+            if (options.body && typeof options.body === "string") {
+              try {
+                const body = JSON.parse(options.body);
+                if (body.messages) {
+                  for (const msg of body.messages) {
+                    if (msg.role === "assistant" && msg.tool_calls) {
+                      for (const tc of msg.tool_calls) {
+                        if (tc.function && tc.function.arguments === undefined) {
+                          tc.function.arguments = "{}";
+                        }
+                      }
+                    }
+                  }
+                }
+                options.body = JSON.stringify(body);
+              } catch (e) {
+                // Ignore parsing errors
+              }
+            }
+            return fetch(url, options);
+          }
+        });
+
+      case "@ai-sdk/groq":
+        return createGroq({
+          apiKey: resolvedKey,
+          fetch: async (url, options) => {
+            if (options.body && typeof options.body === "string") {
+              try {
+                const body = JSON.parse(options.body);
+                if (body.messages) {
+                  for (const msg of body.messages) {
+                    if (msg.role === "assistant" && msg.tool_calls) {
+                      for (const tc of msg.tool_calls) {
+                        if (tc.function && tc.function.arguments === undefined) {
+                          tc.function.arguments = "{}";
+                        }
+                      }
+                    }
+                  }
+                }
+                options.body = JSON.stringify(body);
+              } catch (e) {
+                // Ignore parsing errors
+              }
+            }
+            return fetch(url, options);
+          }
+        });
+
       case "@openrouter/ai-sdk-provider":
         // OpenRouter has its own dedicated SDK — do NOT use @ai-sdk/openai for this
         return createOpenRouter({
@@ -85,6 +142,28 @@ class ProviderManager {
             "HTTP-Referer": "https://agenthub.dev",
             "X-Title": "Brane Hub",
           },
+          fetch: async (url, options) => {
+            if (options.body && typeof options.body === "string") {
+              try {
+                const body = JSON.parse(options.body);
+                if (body.messages) {
+                  for (const msg of body.messages) {
+                    if (msg.role === "assistant" && msg.tool_calls) {
+                      for (const tc of msg.tool_calls) {
+                        if (tc.function && tc.function.arguments === undefined) {
+                          tc.function.arguments = "{}";
+                        }
+                      }
+                    }
+                  }
+                }
+                options.body = JSON.stringify(body);
+              } catch (e) {
+                // Ignore parsing errors
+              }
+            }
+            return fetch(url, options);
+          }
         });
 
       case "@ai-sdk/openai-compatible":

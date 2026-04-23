@@ -226,6 +226,8 @@ export function ProviderSettingsDialog({ open, onOpenChange, onModelsUpdate }: P
                          {provider.id === "openai" && "🟢"}
                          {provider.id === "anthropic" && "🧠"}
                          {provider.id === "google" && "✨"}
+                         {provider.id === "cerebras" && "⚡"}
+                         {provider.id === "groq" && "⚡"}
                          {provider.name}
                       </span>
                       {provider.npm && (

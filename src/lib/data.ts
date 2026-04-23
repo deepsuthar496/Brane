@@ -165,6 +165,8 @@ export const credentials: Credential[] = [
   { id: "anthropic", name: "Anthropic", icon: "Cpu", envVar: "ANTHROPIC_API_KEY", maskedKey: "sk-ant-api03-••••••••••••••••••••••XA", status: "valid", category: "Anthropic" },
   { id: "gemini", name: "Google Gemini", icon: "Sparkles", envVar: "GEMINI_API_KEY", maskedKey: "AIzaSy••••••••••••••••••••••••••••pQ", status: "valid", category: "Google" },
   { id: "openai", name: "OpenAI", icon: "Bot", envVar: "OPENAI_API_KEY", maskedKey: "Not configured — required by Codex CLI & OpenClaw", status: "missing", category: "OpenAI" },
+  { id: "cerebras", name: "Cerebras", icon: "Zap", envVar: "CEREBRAS_API_KEY", maskedKey: "Not configured", status: "missing", category: "Cerebras" },
+  { id: "groq", name: "Groq", icon: "Zap", envVar: "GROQ_API_KEY", maskedKey: "Not configured", status: "missing", category: "Groq" },
   { id: "github", name: "GitHub", icon: "Key", envVar: "GITHUB_TOKEN", maskedKey: "ghp_••••••••••••••••••••••••••••••Kz", status: "valid", category: "Version Control" },
 ];
 

@@ -124,8 +124,89 @@ export default function BraneZOPage() {
       });
     });
 
-    const cleanupFinish = window.electronAPI.onBraneZOFinish(currentSessionId, () => {
+    const cleanupFinish = window.electronAPI.onBraneZOFinish(currentSessionId, (canonicalMessages: any[]) => {
       setThinking(false);
+      
+      // AI SDK returns messages in CoreMessage format. 
+      // Synchronize these with the UI messages to ensure history is valid.
+      setMessages((prev) => {
+        const synced = [...prev];
+        
+        // Find where this turn started in the UI state
+        let lastUserIdxUI = -1;
+        for (let i = synced.length - 1; i >= 0; i--) {
+           if (synced[i].role === "user") {
+              lastUserIdxUI = i;
+              break;
+           }
+        }
+
+        if (lastUserIdxUI === -1) return synced;
+
+        // Find the last user message in canonical history to only process NEW messages
+        let lastUserIdxCanonical = -1;
+        for (let i = canonicalMessages.length - 1; i >= 0; i--) {
+           if (canonicalMessages[i].role === "user") {
+              lastUserIdxCanonical = i;
+              break;
+           }
+        }
+
+        const newMessages = lastUserIdxCanonical >= 0 
+           ? canonicalMessages.slice(lastUserIdxCanonical + 1) 
+           : canonicalMessages;
+
+        // Map canonical messages (Assistant, Tool, etc.) back to UI ChatMessage format
+        const turnResults = [];
+        let currentAssistant: any = null;
+
+        for (const m of newMessages) {
+           const role = m.role === "model" ? "assistant" : m.role;
+           
+           if (role === "assistant") {
+              currentAssistant = {
+                 id: `msg-${Date.now()}-${turnResults.length}`,
+                 role: "assistant",
+                 content: "",
+                 toolUse: [],
+                 timestamp: new Date()
+              };
+              
+              if (typeof m.content === "string") {
+                 currentAssistant.content = m.content;
+              } else if (Array.isArray(m.content)) {
+                 for (const part of m.content) {
+                    if (part.type === "text") currentAssistant.content += part.text;
+                    if (part.type === "tool-call") {
+                       currentAssistant.toolUse.push({
+                          id: part.toolCallId,
+                          toolName: part.toolName,
+                          input: typeof part.args === "string" ? part.args : JSON.stringify(part.args),
+                          status: "success"
+                       });
+                    }
+                 }
+              }
+              turnResults.push(currentAssistant);
+           } else if (role === "tool") {
+              // UI stores tool results INSIDE the preceding assistant message's toolUse array
+              if (currentAssistant && Array.isArray(m.content)) {
+                 for (const part of m.content) {
+                    const tc = currentAssistant.toolUse.find((t: any) => t.id === part.toolCallId || t.toolName === part.toolName);
+                    if (tc) {
+                       tc.output = part.output && typeof part.output === "object" && part.output.value ? part.output.value : JSON.stringify(part.output);
+                       tc.status = part.isError || (part.output && part.output.type === "error-text") ? "error" : "success";
+                    }
+                 }
+              }
+           }
+        }
+
+        // Replace everything from the last user message onwards
+        // synced[lastUserIdxUI] is the User message, turnResults are the responses
+        synced.splice(lastUserIdxUI + 1, synced.length - (lastUserIdxUI + 1), ...turnResults);
+        return synced;
+      });
     });
 
     const cleanupError = window.electronAPI.onBraneZOError(currentSessionId, (errString: string) => {

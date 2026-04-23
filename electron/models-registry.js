@@ -39,6 +39,8 @@ class ModelsRegistry {
             "openai": { id: "openai", name: "OpenAI", env: ["OPENAI_API_KEY"], api: "https://api.openai.com/v1", npm: "@ai-sdk/openai", models: {} },
             "anthropic": { id: "anthropic", name: "Anthropic", env: ["ANTHROPIC_API_KEY"], npm: "@ai-sdk/anthropic", models: {} },
             "google": { id: "google", name: "Google", env: ["GOOGLE_API_KEY"], npm: "@ai-sdk/google", models: {} },
+            "cerebras": { id: "cerebras", name: "Cerebras", env: ["CEREBRAS_API_KEY"], npm: "@ai-sdk/cerebras", models: {} },
+            "groq": { id: "groq", name: "Groq", env: ["GROQ_API_KEY"], npm: "@ai-sdk/groq", models: {} },
             "openrouter": { id: "openrouter", name: "OpenRouter", env: ["OPENROUTER_API_KEY"], npm: "@ai-sdk/openai-compatible", api: "https://openrouter.ai/api/v1", models: {} },
             "codex": { 
               id: "codex", 

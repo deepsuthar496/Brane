@@ -92,7 +92,9 @@ function ToolUseCard({ tool }: { tool: ToolUseBlock }) {
       {expanded && tool.output && (
         <div className="px-3 pb-2.5 pt-0">
           <div className="rounded-md bg-background border border-border/20 px-3 py-2 font-mono text-[11px] text-txt-3 leading-relaxed whitespace-pre-wrap">
-            {tool.output}
+            {typeof tool.output === "object" 
+              ? (tool.output as any).results || (tool.output as any).content || JSON.stringify(tool.output, null, 2)
+              : tool.output}
           </div>
         </div>
       )}

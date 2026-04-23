@@ -8,17 +8,14 @@ const execAsync = util.promisify(exec);
 
 const IGNORED_DIRS = new Set(['node_modules', '.git', '.next', 'dist', 'build', '.vscode', '.idea', 'out']);
 
-// Improved helper for basic globbing with better exclusion
 async function findFiles(dir, pattern, root = dir) {
   const results = [];
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       if (IGNORED_DIRS.has(entry.name)) continue;
-      
       const fullPath = path.join(dir, entry.name);
       const relPath = path.relative(root, fullPath).replace(/\\/g, '/');
-
       if (entry.isDirectory()) {
         results.push(...(await findFiles(fullPath, pattern, root)));
       } else {
@@ -26,305 +23,120 @@ async function findFiles(dir, pattern, root = dir) {
           results.push(fullPath);
         }
       }
-      
-      // Limit to prevent massive results slowing down the agent
       if (results.length > 500) break;
     }
-  } catch (e) {
-    // Ignore read errors for specific files
-  }
+  } catch {}
   return results;
 }
 
 const getTools = (workspacePath) => {
   return {
     read_file: tool({
-      description: "Read the contents of a file in the workspace. Use this to understand code before making changes.",
+      description: "Read a file from the workspace.",
       parameters: z.object({
-        path: z.string().describe("Path to the file relative to the workspace root."),
+        path: z.string().describe("Relative path to the file.")
       }),
-      execute: async (args) => {
-        const relativePath = args?.path;
+      execute: async ({ path: relPath }) => {
         try {
-          if (!relativePath || relativePath.trim() === "") {
-            return { error: "path is required. Provide a valid file path relative to the workspace root." };
-          }
-          const absPath = path.resolve(workspacePath, relativePath);
-          if (!absPath.startsWith(path.resolve(workspacePath))) {
-            return { error: "Access denied. Path is outside the workspace." };
-          }
-          const content = await fs.readFile(absPath, "utf-8");
-          return { content, title: `Read ${relativePath}` };
-        } catch (error) {
-          return { error: error.message };
-        }
+          const abs = path.resolve(workspacePath, relPath);
+          const content = await fs.readFile(abs, "utf-8");
+          return { content, title: `Read ${relPath}` };
+        } catch (e) { return { error: e.message }; }
       },
     }),
 
     write_file: tool({
-      description: "Write content to a file in the workspace. Replaces the file exactly. Use edit_file for targeted edits.",
+      description: "Create or overwrite a file with full content.",
       parameters: z.object({
-        path: z.string().describe("Path to the file relative to the workspace root."),
-        content: z.string().describe("The entire new content of the file."),
+        path: z.string().describe("Relative path."),
+        content: z.string().describe("Complete file content.")
       }),
-      execute: async (args) => {
-        const relativePath = args?.path;
-        const content = args?.content;
+      execute: async ({ path: relPath, content }) => {
         try {
-          if (!relativePath || relativePath.trim() === "") {
-            return { error: "path is required. Provide a valid file path relative to the workspace root." };
-          }
-          const absPath = path.resolve(workspacePath, relativePath);
-          if (!absPath.startsWith(path.resolve(workspacePath))) {
-            return { error: "Access denied. Path is outside the workspace." };
-          }
-          await fs.mkdir(path.dirname(absPath), { recursive: true });
-          await fs.writeFile(absPath, content, "utf-8");
-          return { success: true, title: `Wrote ${relativePath}` };
-        } catch (error) {
-          return { error: error.message };
-        }
+          const abs = path.resolve(workspacePath, relPath);
+          await fs.mkdir(path.dirname(abs), { recursive: true });
+          await fs.writeFile(abs, content, "utf-8");
+          return { success: true, title: `Wrote ${relPath}` };
+        } catch (e) { return { error: e.message }; }
       },
     }),
 
     edit_file: tool({
-      description: "Targeted edit: replace a specific string with another in a file. Very precise and safer than overwriting.",
+      description: "Surgical search and replace. Use for precise code changes.",
       parameters: z.object({
-        path: z.string().describe("Path to the file relative to the workspace root."),
-        old_string: z.string().describe("The EXACT old string to replace. Must match perfectly, including whitespace and indentation."),
-        new_string: z.string().describe("The new string to insert in place of old_string."),
+        path: z.string().describe("Relative path to the file."),
+        old_string: z.string().describe("Exact string to find."),
+        new_string: z.string().describe("String to replace with.")
       }),
-      execute: async (args) => {
-        const relativePath = args?.path;
-        const old_string = args?.old_string;
-        const new_string = args?.new_string;
+      execute: async ({ path: relPath, old_string, new_string }) => {
         try {
-          if (!relativePath || !old_string || new_string === undefined) {
-             return { error: "path, old_string, and new_string are all required arguments." };
-          }
-          const absPath = path.resolve(workspacePath, relativePath);
-          if (!absPath.startsWith(path.resolve(workspacePath))) {
-            return { error: "Access denied. Path is outside the workspace." };
-          }
-          let content = await fs.readFile(absPath, "utf-8");
-          if (!content.includes(old_string)) {
-            return { error: "old_string not found in file. Please ensure exact match including whitespace/indentation." };
-          }
-          const occurences = content.split(old_string).length - 1;
-          if (occurences > 1) {
-            return { error: "old_string matches multiple times in the file. Please provide more context in old_string to make it unique." };
-          }
+          const abs = path.resolve(workspacePath, relPath);
+          let content = await fs.readFile(abs, "utf-8");
+          if (!content.includes(old_string)) return { error: "Exact string not found." };
           content = content.replace(old_string, new_string);
-          await fs.writeFile(absPath, content, "utf-8");
-          return { success: true, title: `Edited ${relativePath}` };
-        } catch (error) {
-          return { error: error.message };
-        }
+          await fs.writeFile(abs, content, "utf-8");
+          return { success: true, title: `Edited ${relPath}` };
+        } catch (e) { return { error: e.message }; }
       },
     }),
 
     glob_search: tool({
-      description: "Fast file name search using a simple pattern match (e.g., 'auth', 'components'). Use this to find where files are located.",
-      parameters: z.object({
-        pattern: z.string().describe("The text or pattern to match against file paths."),
+      description: "Find files by name pattern. Use '.' to list all files.",
+      parameters: z.object({ 
+        pattern: z.string().describe("The search pattern (e.g. 'auth', 'components', or '.')")
       }),
-      execute: async (args) => {
-        const pattern = args?.pattern;
+      execute: async ({ pattern }) => {
         try {
-          if (!pattern) return { error: "pattern is required" };
-          const files = await findFiles(workspacePath, pattern);
-          const relativeFiles = files.map(f => path.relative(workspacePath, f).replace(/\\/g, '/'));
-          return { files: relativeFiles.slice(0, 100), title: `Found ${relativeFiles.length} files matching '${pattern}'` };
-        } catch (error) {
-          return { error: error.message };
-        }
+          const files = await findFiles(workspacePath, pattern === "." ? "" : pattern);
+          const rels = files.map(f => path.relative(workspacePath, f).replace(/\\/g, '/'));
+          return { files: rels.slice(0, 100), title: `Found ${rels.length} files` };
+        } catch (e) { return { error: e.message }; }
       },
     }),
 
     grep_search: tool({
-      description: "Search for text patterns inside files across the workspace.",
+      description: "Search for text inside files.",
       parameters: z.object({
-        pattern: z.string().describe("The text string or regex to search for in file contents."),
-        path: z.string().optional().describe("Optional relative path to restrict the search (e.g., 'src/components')."),
+        pattern: z.string().describe("The text or regex to search for.")
       }),
-      execute: async (args) => {
-        const pattern = args?.pattern;
-        const searchPath = args?.path || ".";
+      execute: async ({ pattern }) => {
         try {
-          if (!pattern) return { error: "pattern is required" };
           const isWin = process.platform === "win32";
-          let cmd = '';
           const safePattern = pattern.replace(/"/g, '\\"');
-          
-          if (isWin) {
-            cmd = `powershell -NoProfile -Command "Select-String -Path '${searchPath}\\*' -Pattern '${safePattern}' -Recurse -Exclude node_modules, .git, .next, dist, build | Select-Object -First 100 | Format-Table -Property Path, LineNumber, Line"`;
-          } else {
-            cmd = `grep -rn "${safePattern}" ${searchPath} --exclude-dir={node_modules,.git,.next,dist,build} | head -n 100`;
-          }
-          
-          const { stdout, stderr } = await execAsync(cmd, { cwd: workspacePath });
-          return { 
-            results: stdout.toString().trim() || "No matches found.", 
-            title: `Searched for '${pattern}'` 
-          };
-        } catch (error) {
-          if (error.code === 1 || error.stdout) {
-             return { results: "No matches found.", title: `Searched for '${pattern}'` };
-          }
-          return { error: error.message };
-        }
+          const cmd = isWin 
+            ? `powershell -NoProfile -Command "Select-String -Path '*.*' -Pattern '${safePattern}' -Recurse -Exclude node_modules, .git, .next | Select-Object -First 100 | ForEach-Object { \\"$(\$_.Path):$($_.LineNumber):$(\$_.Line)\\" }"`
+            : `grep -rn "${safePattern}" . --exclude-dir={node_modules,.git,.next} | head -n 100`;
+          const { stdout } = await execAsync(cmd, { cwd: workspacePath });
+          return { results: stdout.trim() || "No matches.", title: `Searched for '${pattern}'` };
+        } catch (e) { return { results: "No matches.", title: `Searched for '${pattern}'` }; }
       },
     }),
 
     run_bash: tool({
-      description: "Run a shell/terminal command in the workspace directory. Use this ONLY for terminal operations like running tests, git commands, npm scripts, build tools, linters, and other CLI tools. Do NOT use this tool if you just need to respond to the user with text — use a normal text response instead. Do NOT use this for reading or writing files — use the dedicated file tools instead. The 'command' argument is REQUIRED and must be a valid shell command string.",
-      parameters: z.object({
-        command: z.string().describe("The command line to run. REQUIRED — must be a non-empty, valid shell command."),
+      description: "Run a terminal command (npm, git, test, etc.). Non-interactive ONLY.",
+      parameters: z.object({ 
+        command: z.string().describe("The shell command to execute.")
       }),
-      execute: async (args) => {
-        const command = args?.command;
+      execute: async ({ command }) => {
         try {
-          // Critical validation: reject empty/undefined commands
-          if (!command || typeof command !== 'string' || command.trim() === "") {
-            return { error: "command is required. You must provide a valid, non-empty shell command string. If you don't need to run a terminal command, respond with text instead of calling this tool." };
-          }
-          const { stdout, stderr } = await execAsync(command, { 
-            cwd: workspacePath,
-            maxBuffer: 1024 * 1024 * 10 // 10MB
-          });
-          return { 
-            stdout: stdout.toString().slice(0, 10000), 
-            stderr: stderr.toString().slice(0, 10000),
-            title: `Run ${command.split(' ')[0]}`
-          };
-        } catch (error) {
-           return { 
-            error: error.message, 
-            stdout: error.stdout?.toString().slice(0, 10000),
-            stderr: error.stderr?.toString().slice(0, 10000),
-            title: `Failed ${command.split(' ')[0]}`
-          };
-        }
+          const { stdout, stderr } = await execAsync(command, { cwd: workspacePath, maxBuffer: 10 * 1024 * 1024 });
+          return { stdout, stderr, title: `Ran: ${command.split(' ')[0]}` };
+        } catch (e) { return { error: e.message, stdout: e.stdout, stderr: e.stderr, title: `Failed: ${command.split(' ')[0]}` }; }
       },
     }),
 
     activate_skill: tool({
-      description: "Activates a specialized agent skill by name. Returns the skill's instructions wrapped in <activated_skill> tags. Use this when you identify a task that matches a skill's description in the <available_skills> block.",
-      parameters: z.object({
-        name: z.string().describe("The name of the skill to activate (e.g. 'deploy-to-vercel')."),
+      description: "Load a specialized skill's instructions.",
+      parameters: z.object({ 
+        name: z.string().describe("The exact name of the skill.")
       }),
-      execute: async (args) => {
-        const name = args?.name;
+      execute: async ({ name }) => {
         try {
-          // Skills are defined in Brane's central skills lockfile or directory
-          // Read from registry/skills/ to find the SKILL.md
-          // In a real app we'd parse the lockfile to get the exact path, but we can also just search for it or construct the path.
-          
-          const appRoot = path.resolve(__dirname, "../../"); 
-          const skillsLockPath = path.join(appRoot, "skills-lock.json");
-          let skillPath = null;
-          
-          try {
-             const lockData = await fs.readFile(skillsLockPath, "utf-8");
-             const lockJson = JSON.parse(lockData);
-             if (lockJson.installed && lockJson.installed.skills && lockJson.installed.skills[name]) {
-                skillPath = path.join(appRoot, lockJson.installed.skills[name].path);
-             }
-          } catch (e) {
-             console.error("Could not read skills-lock.json", e);
-          }
-          
-          // Fallback simple search if lockfile lookup fails
-          if (!skillPath) {
-             const fallbackPaths = await findFiles(path.join(appRoot, "registry", "skills"), "SKILL.md");
-             skillPath = fallbackPaths.find(p => p.includes(`/${name}/`) || p.includes(`\\${name}\\`));
-          }
-
-          if (!skillPath) {
-             return { error: `Skill '${name}' not found.` };
-          }
-          
-          const content = await fs.readFile(skillPath, "utf-8");
-          return { 
-            instructions: `<activated_skill name="${name}">\n  <instructions>\n${content}\n  </instructions>\n</activated_skill>`,
-            title: `Activated Skill: ${name}`
-          };
-        } catch (error) {
-           return { error: error.message };
-        }
-      },
-    }),
-
-    list_mcp_servers: tool({
-      description: "Lists all Model Context Protocol (MCP) servers currently enabled in the Brane Hub system.",
-      parameters: z.object({}),
-      execute: async () => {
-        try {
-          const mcpManager = require("../mcp-manager");
-          const servers = await mcpManager.getMcpServers();
-          const enabled = servers.filter(s => s.enabled);
-          return {
-            servers: enabled.map(s => ({
-              id: s.id,
-              name: s.name,
-              description: s.description,
-              isBuiltIn: s.isBuiltIn
-            })),
-            title: `Listed ${enabled.length} enabled MCP servers`
-          };
-        } catch (e) {
-          return { error: e.message };
-        }
-      },
-    }),
-
-    call_mcp_tool: tool({
-      description: "Invokes a specific tool on a configured MCP server. Note: Since this is a direct stdio call, it may take a few seconds to initialize.",
-      parameters: z.object({
-        serverId: z.string().describe("The ID of the MCP server to call (e.g. 'brane-knowledge')."),
-        toolName: z.string().describe("The name of the tool to execute."),
-        arguments: z.any().describe("The arguments to pass to the tool (JSON object)."),
-      }),
-      execute: async ({ serverId, toolName, arguments: args }) => {
-        try {
-          const mcpManager = require("../mcp-manager");
-          const servers = await mcpManager.getMcpServers();
-          const config = servers.find(s => s.id === serverId);
-          
-          if (!config) return { error: `MCP server '${serverId}' not found.` };
-          if (!config.enabled) return { error: `MCP server '${serverId}' is disabled.` };
-
-          // Simplified one-shot MCP stdio call for the prototype
-          // In a real implementation we'd maintain persistent client connections
-          // We wrap the stdio command into a JSON-RPC request
-          const jsonRpc = {
-            jsonrpc: "2.0",
-            id: 1,
-            method: "tools/call",
-            params: {
-              name: toolName,
-              arguments: args
-            }
-          };
-
-          const fullCommand = `${config.command} ${config.args.join(' ')}`;
-          const input = JSON.stringify(jsonRpc);
-          
-          // Use bash to pipe the input to the server command
-          // Note: This is an oversimplification; real MCP servers expect a handshake first.
-          // However, for Brane's built-in servers, we can bypass the handshake if they are designed to handle it.
-          const { stdout, stderr } = await execAsync(`echo '${input.replace(/'/g, "'\\''")}' | ${fullCommand}`, {
-             maxBuffer: 1024 * 1024 * 5
-          });
-
-          return {
-            result: stdout.toString().trim(),
-            stderr: stderr.toString().trim(),
-            title: `Called MCP Tool: ${serverId}:${toolName}`
-          };
-        } catch (e) {
-          return { error: e.message };
-        }
+          const appRoot = path.resolve(__dirname, "../../");
+          const lock = JSON.parse(await fs.readFile(path.join(appRoot, "skills-lock.json"), "utf-8"));
+          const skillPath = path.join(appRoot, lock.installed.skills[name].path);
+          return { instructions: `<activated_skill name="${name}">\n${await fs.readFile(skillPath, "utf-8")}\n</activated_skill>`, title: `Activated ${name}` };
+        } catch (e) { return { error: e.message }; }
       },
     }),
   };
