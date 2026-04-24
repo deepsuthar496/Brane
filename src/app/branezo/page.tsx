@@ -1,46 +1,52 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Titlebar } from "@/components/layout/titlebar";
-import { AppSidebar } from "@/components/layout/app-sidebar";
+import { useChatStore } from "@/store/chat-store";
 import { ChatPanel } from "@/components/branezo/chat-panel";
 import { FilesPanel } from "@/components/branezo/files-panel";
+import { AppSidebar } from "@/components/app-sidebar";
+import { Titlebar } from "@/components/titlebar";
 import { cn } from "@/lib/utils";
-import type { ChatMessage, FileChange, FileTreeNode } from "@/components/branezo/types";
-import { MOCK_FILE_CHANGES, MOCK_FILE_TREE, SUGGESTED_PROMPTS } from "@/components/branezo/mock-data";
-import { GripVertical, FolderOpen, Bot } from "lucide-react";
-import { useChatStore } from "@/store/chat-store";
+import { Bot, FolderOpen, GripVertical } from "lucide-react";
+import type { ChatMessage, FileTreeNode, FileChange } from "@/components/branezo/types";
 
 // ── BraneZO Page ──────────────────────────────────────
 
+const SUGGESTED_PROMPTS = [
+  "Build a simple login page with Tailwind",
+  "Explain how the auth system works",
+  "Refactor the UserProfile component",
+  "Add unit tests for the math utilities",
+];
+
 export default function BraneZOPage() {
-  // Session state from Zustand
-  const { 
-    messages, 
-    setMessages, 
-    isThinking, 
-    setThinking, 
-    tokensUsed, 
-    cost, 
+  const {
+    messages,
+    isThinking,
+    tokensUsed,
+    cost,
     currentSessionId,
     workspacePath,
+    setMessages,
+    setThinking,
+    clearMessages,
     setWorkspacePath,
-    clearMessages
   } = useChatStore();
 
-  const [files] = useState<FileChange[]>(MOCK_FILE_CHANGES); // Kept mocked for now until real fs watcher
+  const [files, setFiles] = useState<FileChange[]>([]);
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([]);
+  const [splitPercent, setSplitPercent] = useState(38);
   const [model, setModel] = useState("openai:gpt-4-turbo");
 
-  // Resizable panels
-  const [splitPercent, setSplitPercent] = useState(42);
-  const isDragging = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  // ── Handlers ─────────────────────────────────────
 
   const handleSelectWorkspace = async () => {
     if (!window.electronAPI) return;
     const result = await window.electronAPI.browseFiles({
-      properties: ['openDirectory']
+      properties: ["openDirectory"],
     });
     if (!result.canceled && result.filePaths.length > 0) {
       setWorkspacePath(result.filePaths[0]);
@@ -48,16 +54,12 @@ export default function BraneZOPage() {
   };
 
   useEffect(() => {
-    if (!workspacePath || !window.electronAPI) return;
-    
-    // Load actual file tree when workspace changes
-    window.electronAPI.readFileTree(workspacePath).then(tree => {
-      if (tree) setFileTree(tree);
-    });
+    if (workspacePath && window.electronAPI) {
+      window.electronAPI.readBraneZOFileTree(workspacePath).then(setFileTree);
+    }
   }, [workspacePath]);
 
   useEffect(() => {
-    // Listen for agent streaming responses
     if (!window.electronAPI) return;
 
     const cleanupChunk = window.electronAPI.onBraneZOChunk(currentSessionId, (text: string) => {
@@ -75,8 +77,6 @@ export default function BraneZOPage() {
           msgs.push(lastMsg);
           setThinking(false);
         }
-        
-        // Safe string concatenation to avoid undefined + undefined = NaN
         lastMsg.content = (lastMsg.content || "") + (text || "");
         return msgs;
       });
@@ -97,7 +97,6 @@ export default function BraneZOPage() {
           msgs.push(lastMsg);
           setThinking(false);
         }
-        
         lastMsg.toolUse = lastMsg.toolUse || [];
         lastMsg.toolUse.push({
           id: call.id,
@@ -112,12 +111,17 @@ export default function BraneZOPage() {
     const cleanupToolResult = window.electronAPI.onBraneZOToolResult(currentSessionId, (res: any) => {
       setMessages((prev) => {
         const msgs = [...prev];
-        const lastMsg = msgs[msgs.length - 1];
-        if (lastMsg && lastMsg.role === "assistant" && lastMsg.toolUse) {
-          const tool = lastMsg.toolUse.find(t => t.id === res.id);
-          if (tool) {
-            tool.status = res.result?.error ? "error" : "success";
-            tool.output = res.result?.error || res.result?.title || "Completed";
+        // Look for the tool call in any assistant message (usually the last one)
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          const msg = msgs[i];
+          if (msg.role === "assistant" && msg.toolUse) {
+            const tool = msg.toolUse.find(t => t.id === res.id);
+            if (tool) {
+              const isError = res.result && (res.result.error !== undefined || res.result.isError === true);
+              tool.status = isError ? "error" : "success";
+              tool.output = res.result?.error || res.result?.stdout || res.result?.results || JSON.stringify(res.result);
+              break;
+            }
           }
         }
         return msgs;
@@ -127,12 +131,8 @@ export default function BraneZOPage() {
     const cleanupFinish = window.electronAPI.onBraneZOFinish(currentSessionId, (canonicalMessages: any[]) => {
       setThinking(false);
       
-      // AI SDK returns messages in CoreMessage format. 
-      // Synchronize these with the UI messages to ensure history is valid.
       setMessages((prev) => {
         const synced = [...prev];
-        
-        // Find where this turn started in the UI state
         let lastUserIdxUI = -1;
         for (let i = synced.length - 1; i >= 0; i--) {
            if (synced[i].role === "user") {
@@ -140,10 +140,8 @@ export default function BraneZOPage() {
               break;
            }
         }
-
         if (lastUserIdxUI === -1) return synced;
 
-        // Find the last user message in canonical history to only process NEW messages
         let lastUserIdxCanonical = -1;
         for (let i = canonicalMessages.length - 1; i >= 0; i--) {
            if (canonicalMessages[i].role === "user") {
@@ -152,20 +150,19 @@ export default function BraneZOPage() {
            }
         }
 
-        const newMessages = lastUserIdxCanonical >= 0 
+        const newMessagesFromAgent = lastUserIdxCanonical >= 0
            ? canonicalMessages.slice(lastUserIdxCanonical + 1) 
            : canonicalMessages;
 
-        // Map canonical messages (Assistant, Tool, etc.) back to UI ChatMessage format
-        const turnResults = [];
-        let currentAssistant: any = null;
+        const turnResults: ChatMessage[] = [];
+        let currentAssistant: ChatMessage | null = null;
 
-        for (const m of newMessages) {
-           const role = m.role === "model" ? "assistant" : m.role;
+        for (const m of newMessagesFromAgent) {
+           const role = (m.role === "model" || m.role === "assistant") ? "assistant" : m.role;
            
            if (role === "assistant") {
               currentAssistant = {
-                 id: `msg-${Date.now()}-${turnResults.length}`,
+                 id: `msg-fin-${Date.now()}-${turnResults.length}`,
                  role: "assistant",
                  content: "",
                  toolUse: [],
@@ -178,7 +175,7 @@ export default function BraneZOPage() {
                  for (const part of m.content) {
                     if (part.type === "text") currentAssistant.content += part.text;
                     if (part.type === "tool-call") {
-                       currentAssistant.toolUse.push({
+                       currentAssistant.toolUse?.push({
                           id: part.toolCallId,
                           toolName: part.toolName,
                           input: typeof part.args === "string" ? part.args : JSON.stringify(part.args),
@@ -189,22 +186,21 @@ export default function BraneZOPage() {
               }
               turnResults.push(currentAssistant);
            } else if (role === "tool") {
-              // UI stores tool results INSIDE the preceding assistant message's toolUse array
               if (currentAssistant && Array.isArray(m.content)) {
                  for (const part of m.content) {
-                    const tc = currentAssistant.toolUse.find((t: any) => t.id === part.toolCallId || t.toolName === part.toolName);
+                    const tc = currentAssistant.toolUse?.find((t: any) => t.id === part.toolCallId);
                     if (tc) {
-                       tc.output = part.output && typeof part.output === "object" && part.output.value ? part.output.value : JSON.stringify(part.output);
-                       tc.status = part.isError || (part.output && part.output.type === "error-text") ? "error" : "success";
+                       tc.output = typeof part.result === "string" ? part.result : JSON.stringify(part.result);
+                       tc.status = part.isError ? "error" : "success";
                     }
                  }
               }
            }
         }
 
-        // Replace everything from the last user message onwards
-        // synced[lastUserIdxUI] is the User message, turnResults are the responses
-        synced.splice(lastUserIdxUI + 1, synced.length - (lastUserIdxUI + 1), ...turnResults);
+        if (turnResults.length > 0) {
+           synced.splice(lastUserIdxUI + 1, synced.length - (lastUserIdxUI + 1), ...turnResults);
+        }
         return synced;
       });
     });
@@ -216,7 +212,7 @@ export default function BraneZOPage() {
          {
             id: `err-${Date.now()}`,
             role: "assistant",
-            content: `**Error:** ${errString}\n\nPlease check your provider API key or Model endpoint settings in the ⚙️ Settings dialog.`,
+            content: `**Error:** ${errString}\n\nPlease check your provider settings or API keys.`,
             timestamp: new Date()
          }
       ]);
@@ -236,29 +232,14 @@ export default function BraneZOPage() {
       if (!workspacePath) return;
 
       const trimmedContent = content.trim();
-      
-      // Intercept Slash Commands
       if (trimmedContent === "/clear" || trimmedContent === "/reset") {
          clearMessages();
-         if (window.electronAPI) {
-            window.electronAPI.abortBraneZOChat(currentSessionId);
-         }
+         if (window.electronAPI) window.electronAPI.abortBraneZOChat(currentSessionId);
          return;
       }
       
-      if (trimmedContent === "/help") {
-         const helpMsg: ChatMessage = {
-           id: `msg-${Date.now()}`,
-           role: "assistant",
-           content: `**BraneZO Slash Commands**\n\n- \`/clear\` or \`/reset\`: Clear the conversation history and start fresh.\n- \`/settings\`: Open the provider configuration dialog.\n- \`/model\`: Open the model selection menu.\n- \`/help\`: Show this help message.\n\n**Mentions**\n- Type \`@\` followed by a file name to inject its contents directly into the prompt context.`,
-           timestamp: new Date(),
-         };
-         setMessages((prev) => [...prev, helpMsg]);
-         return;
-      }
-
       const userMsg: ChatMessage = {
-        id: `msg-${Date.now()}`,
+        id: `msg-user-${Date.now()}`,
         role: "user",
         content,
         timestamp: new Date(),
@@ -268,13 +249,9 @@ export default function BraneZOPage() {
       setThinking(true);
 
       if (window.electronAPI) {
-        // Correctly split e.g. "openrouter:anthropic/claude-3-haiku" or "custom:llama3:latest"
         const firstColon = model.indexOf(":");
         const providerId = firstColon > -1 ? model.substring(0, firstColon) : "openai";
         const modelId = firstColon > -1 ? model.substring(firstColon + 1) : "gpt-4-turbo";
-        
-        // Using a dummy key here for the prototype until secret management is hooked up
-        const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY || "dummy_key"; 
         
         window.electronAPI.startBraneZOChat({
           id: currentSessionId,
@@ -282,16 +259,12 @@ export default function BraneZOPage() {
           workspacePath: workspacePath,
           providerId: providerId,
           modelId: modelId,
-          apiKey: apiKey
+          apiKey: "dummy_key"
         });
-      } else {
-        setThinking(false); // Can't send if no electron
       }
     },
-    [messages, model, currentSessionId, workspacePath]
+    [messages, model, currentSessionId, workspacePath, clearMessages, setMessages, setThinking]
   );
-
-  // ── Drag Resize Logic ─────────────────────────
 
   const handleMouseDown = useCallback(() => {
     isDragging.current = true;
@@ -304,15 +277,13 @@ export default function BraneZOPage() {
       if (!isDragging.current || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const percent = ((e.clientX - rect.left) / rect.width) * 100;
-      setSplitPercent(Math.max(28, Math.min(65, percent)));
+      setSplitPercent(Math.max(20, Math.min(80, percent)));
     };
-
     const handleMouseUp = () => {
       isDragging.current = false;
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
     return () => {
@@ -326,10 +297,7 @@ export default function BraneZOPage() {
       <Titlebar />
       <div className="flex flex-1 overflow-hidden">
         <AppSidebar />
-        <main
-          ref={containerRef}
-          className="flex-1 flex overflow-hidden bg-background"
-        >
+        <main ref={containerRef} className="flex-1 flex overflow-hidden bg-background">
           {!workspacePath ? (
             <div className="flex-1 flex items-center justify-center p-8 text-center bg-surface-2/20">
                <div className="flex flex-col items-center max-w-sm">
@@ -338,7 +306,7 @@ export default function BraneZOPage() {
                   </div>
                   <h2 className="text-xl font-bold text-foreground mb-3">Welcome to BraneZO</h2>
                   <p className="text-sm text-txt-3 mb-8 leading-relaxed">
-                     Your autonomous coding agent is ready. To get started, select a folder on your computer that you want the agent to work on.
+                     Your autonomous coding agent is ready. Select a folder to get started.
                   </p>
                   <button
                      onClick={handleSelectWorkspace}
@@ -351,19 +319,13 @@ export default function BraneZOPage() {
             </div>
           ) : (
             <>
-              {/* ── Chat Panel ─────────────────────── */}
-              <div
-                className="overflow-hidden flex flex-col border-r border-border/30"
-                style={{ width: `${splitPercent}%` }}
-              >
+              <div className="overflow-hidden flex flex-col border-r border-border/30" style={{ width: `${splitPercent}%` }}>
                 <ChatPanel
                   messages={messages}
                   onSendMessage={handleSendMessage}
                   isThinking={isThinking}
                   onStop={() => {
-                    if (window.electronAPI) {
-                      window.electronAPI.abortBraneZOChat(currentSessionId);
-                    }
+                    if (window.electronAPI) window.electronAPI.abortBraneZOChat(currentSessionId);
                     setThinking(false);
                   }}
                   model={model}
@@ -371,30 +333,17 @@ export default function BraneZOPage() {
                   tokensUsed={tokensUsed}
                   cost={cost}
                   suggestions={SUGGESTED_PROMPTS}
-                  sessionTitle={workspacePath.split(/[\/\\]/).pop() || "BraneZO"}
+                  sessionTitle={workspacePath.split(/[/\\]/).pop() || "BraneZO"}
                   fileTree={fileTree}
                 />
               </div>
-
-              {/* ── Drag Handle ────────────────────── */}
-              <div
-                onMouseDown={handleMouseDown}
-                className={cn(
-                  "w-[5px] shrink-0 cursor-col-resize flex items-center justify-center group transition-colors relative z-10",
-                  "hover:bg-primary/10 active:bg-primary/20"
-                )}
-              >
+              <div onMouseDown={handleMouseDown} className="w-[5px] shrink-0 cursor-col-resize flex items-center justify-center group transition-colors relative z-10 hover:bg-primary/10 active:bg-primary/20">
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                   <GripVertical className="size-3 text-txt-4" />
                 </div>
               </div>
-
-              {/* ── Files Panel ────────────────────── */}
-              <div
-                className="overflow-hidden flex flex-col relative"
-                style={{ width: `${100 - splitPercent}%` }}
-              >
-                <div className="absolute top-3 left-4 z-10 text-xs font-medium text-txt-3 bg-background/80 backdrop-blur-sm px-2 py-0.5 rounded-full border border-border/40 truncate max-w-[80%] flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors shadow-sm" onClick={handleSelectWorkspace} title="Click to change workspace">
+              <div className="overflow-hidden flex flex-col relative" style={{ width: `${100 - splitPercent}%` }}>
+                <div className="absolute top-3 left-4 z-10 text-xs font-medium text-txt-3 bg-background/80 backdrop-blur-sm px-2 py-0.5 rounded-full border border-border/40 truncate max-w-[80%] flex items-center gap-1.5 cursor-pointer hover:text-foreground transition-colors shadow-sm" onClick={handleSelectWorkspace}>
                    <FolderOpen className="size-3" />
                    {workspacePath}
                 </div>

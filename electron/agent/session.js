@@ -1,4 +1,4 @@
-const { streamText, convertToCoreMessages } = require("ai");
+const { streamText } = require("ai");
 const providerManager = require("./provider");
 const { getTools } = require("./tools");
 const fs = require("fs/promises");
@@ -27,46 +27,69 @@ async function getSkillsPrompt() {
   } catch (e) { return ""; }
 }
 
+/**
+ * Maps UI messages to AI SDK CoreMessages.
+ * UI messages have a structure where tool calls and results are often nested
+ * or stored in custom formats. We need to flatten them into the standard
+ * assistant/tool message sequence.
+ */
 function mapToCoreMessages(uiMessages) {
-  const core = [];
+  const coreMessages = [];
+
   for (const msg of uiMessages) {
     if (msg.role === "user") {
-      core.push({ role: "user", content: String(msg.content || "Continue") });
+      coreMessages.push({
+        role: "user",
+        content: msg.content || "Continue",
+      });
     } else if (msg.role === "assistant") {
-      const content = [];
-      if (msg.content) content.push({ type: "text", text: msg.content });
-      
+      // 1. Add the assistant's text and tool calls
+      const assistantContent = [];
+      if (msg.content) {
+        assistantContent.push({ type: "text", text: msg.content });
+      }
+
       if (msg.toolUse && Array.isArray(msg.toolUse)) {
         for (const t of msg.toolUse) {
-          content.push({
+          assistantContent.push({
             type: "tool-call",
             toolCallId: t.id,
             toolName: t.toolName,
-            args: typeof t.input === "string" ? (() => { try { return JSON.parse(t.input); } catch(e) { return {}; } })() : (t.input || {})
+            args: typeof t.input === "string" ? (() => { try { return JSON.parse(t.input); } catch(e) { return {}; } })() : (t.input || {}),
           });
         }
       }
-      
-      if (content.length > 0) core.push({ role: "assistant", content });
 
-      // If results exist, they MUST be in the next 'tool' message
-      const results = (msg.toolUse || [])
-        .filter(t => t.status === "success" || t.status === "error" || t.output !== undefined)
-        .map(t => ({
-          type: "tool-result",
-          toolCallId: t.id,
-          toolName: t.toolName,
-          // AI SDK v6 strictly requires 'output' object with 'type' discriminator
-          output: {
-            type: t.status === "error" ? "error-text" : "text",
-            value: typeof t.output === "string" ? t.output : JSON.stringify(t.output || "Completed")
-          }
-        }));
-      
-      if (results.length > 0) core.push({ role: "tool", content: results });
+      if (assistantContent.length > 0) {
+        coreMessages.push({
+          role: "assistant",
+          content: assistantContent,
+        });
+      }
+
+      // 2. Add the corresponding tool results as a separate 'tool' message
+      if (msg.toolUse && Array.isArray(msg.toolUse)) {
+        const toolResults = msg.toolUse
+          .filter(t => t.status === "success" || t.status === "error" || t.output !== undefined)
+          .map(t => ({
+            type: "tool-result",
+            toolCallId: t.id,
+            toolName: t.toolName,
+            result: t.output || (t.status === "error" ? "Error occurred" : "Completed"),
+            isError: t.status === "error",
+          }));
+
+        if (toolResults.length > 0) {
+          coreMessages.push({
+            role: "tool",
+            content: toolResults,
+          });
+        }
+      }
     }
   }
-  return core;
+
+  return coreMessages;
 }
 
 class AgentSession {
@@ -86,6 +109,7 @@ class AgentSession {
       const coreMessages = mapToCoreMessages(messages);
 
       console.log(`\n[BraneZO]: Turn Start - Session: ${id} | Model: ${modelId}`);
+      // console.log("Core Messages:", JSON.stringify(coreMessages, null, 2));
 
       const result = streamText({
         model,
@@ -95,13 +119,6 @@ class AgentSession {
         maxSteps: 15,
         toolChoice: "auto",
         abortSignal: abortController.signal,
-        experimental_repairToolCall: async ({ toolCall }) => {
-          if (!toolCall.args || toolCall.args === "" || toolCall.args === "{}") {
-             // If model fails to provide args, give it a placeholder to prevent crashes
-             return { ...toolCall, args: '{"pattern": "."}' };
-          }
-          return toolCall;
-        },
       });
 
       for await (const chunk of result.fullStream) {
@@ -113,21 +130,34 @@ class AgentSession {
             break;
           case "tool-call":
             console.log(`[Tool Call]: ${chunk.toolName}`);
-            onToolCall({ id: chunk.toolCallId, name: chunk.toolName, args: chunk.args });
+            onToolCall({
+              id: chunk.toolCallId,
+              name: chunk.toolName,
+              args: chunk.args
+            });
             break;
           case "tool-result":
             console.log(`[Tool Result]: ${chunk.toolName}`);
-            onToolResult({ id: chunk.toolCallId, name: chunk.toolName, result: chunk.result });
+            onToolResult({
+              id: chunk.toolCallId,
+              name: chunk.toolName,
+              result: chunk.result
+            });
             break;
           case "error":
             console.error("[SDK Stream Error]:", chunk.error);
-            throw chunk.error;
+            // Don't throw here to allow partial responses, but report it
+            onError(chunk.error);
+            break;
         }
       }
 
       if (abortController.signal.aborted) return;
+
       const final = await result.response;
       console.log(`[Turn Complete]: ${final.messages.length} messages generated`);
+
+      // Send the full response messages back to sync the UI state
       onFinish(final.messages);
     } catch (e) {
       if (e.name !== 'AbortError') {
