@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "skills": {
+    "shadcn": {
+      "source": "shadcn/ui",
+      "sourceType": "github",
+      "computedHash": "77faba608ea949351d1757e29e6cb726f6ec5937f7595be0593038a7d2d76bb9"
+    }
+  },
+  "installed": {
+    "skills": {
+      "deploy-to-vercel": {
+        "version": "3.0.0",
+        "installedAt": "2026-04-12T07:07:15.196Z",
+        "path": "registry/skills/vercel/deploy-to-vercel/SKILL.md",
+        "enabled": true
+      },
+      "react-view-transitions": {
+        "version": "1.0.0",
+        "installedAt": "2026-04-28T14:43:48.622Z",
+        "path": "registry/skills/vercel/react-view-transitions/SKILL.md",
+        "enabled": true
+      }
+    },
+    "mcps": {
+      "supabase": {
+        "version": "1.0.0",
+        "installedAt": "2026-04-02T15:35:11.724Z",
+        "sourceCategory": "system",
+        "enabled": true
+      },
+      "filesystem": {
+        "version": "1.0.0",
+        "installedAt": "2026-05-01T12:40:16.622Z",
+        "sourceCategory": "system",
+        "enabled": true
+      }
+    },
+    "prompts": {}
+  }
+}
